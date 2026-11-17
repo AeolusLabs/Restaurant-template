@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contrastWithWhite, parseOklch } from "../src/lib/color";
 import { formatIssues } from "../src/lib/format-issues";
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "expected HH:MM (24h)");
@@ -23,7 +24,15 @@ const isTimezone = (tz: string) => {
 export const restaurantConfigSchema = z.object({
   name: z.string().min(1),
   logo: z.string().nullable(),
-  colors: z.object({ primary: z.string().min(1), accent: z.string().min(1) }),
+  colors: z.object({
+    // Buttons and links use white text on the primary colour, so it must be dark enough to read (WCAG AA).
+    primary: z.string().superRefine((v, ctx) => {
+      const c = parseOklch(v);
+      if (!c) ctx.addIssue({ code: "custom", message: "write the colour as oklch(L% C H), for example oklch(48% 0.14 40)" });
+      else if (contrastWithWhite(c) < 4.5) ctx.addIssue({ code: "custom", message: "too light for white text: it needs a contrast of at least 4.5:1 with white, so lower the lightness" });
+    }),
+    accent: z.string().refine((v) => parseOklch(v) !== null, { message: "write the colour as oklch(L% C H), for example oklch(70% 0.15 150)" }),
+  }),
   contact: z.object({ phone: z.string().optional(), email: z.string().optional() }),
   address: z.object({
     line1: z.string().min(1),
