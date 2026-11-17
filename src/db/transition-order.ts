@@ -41,15 +41,23 @@ function translate(err: unknown): Error {
  * in one transaction. The actor's identity is taken from the request context, not from an argument.
  */
 export async function transitionOrder(input: TransitionInput, opts: TransitionOptions = {}): Promise<{ status: OrderStatus }> {
+  return input.actor.type === "system"
+    ? withSystemContext((tx) => transitionOrderIn(tx, input), { url: opts.systemUrl })
+    : withRequestContext(
+        { userId: input.actor.id, role: input.actor.type === "staff" ? input.actor.role : "customer" },
+        (tx) => transitionOrderIn(tx, input),
+        { url: opts.appUrl },
+      );
+}
+
+/**
+ * The same transition inside a transaction the caller already opened, so a webhook can record the event,
+ * the payment and the status change atomically. The transaction must have been opened with the context of
+ * input.actor (the database reads the actor from it, not from this argument).
+ */
+export async function transitionOrderIn(tx: Tx, input: TransitionInput): Promise<{ status: OrderStatus }> {
   try {
-    const rows =
-      input.actor.type === "system"
-        ? await withSystemContext((tx) => run(tx, input), { url: opts.systemUrl })
-        : await withRequestContext(
-            { userId: input.actor.id, role: input.actor.type === "staff" ? input.actor.role : "customer" },
-            (tx) => run(tx, input),
-            { url: opts.appUrl },
-          );
+    const rows = await run(tx, input);
     return { status: rows.rows[0].status as OrderStatus };
   } catch (err) {
     throw translate(err);

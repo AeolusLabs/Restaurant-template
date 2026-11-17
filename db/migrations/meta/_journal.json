@@ -50,6 +50,20 @@
       "when": 1794945003766,
       "tag": "0006_order_transitions",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794955548066,
+      "tag": "0007_phase2_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794955551426,
+      "tag": "0008_phase2_grants",
+      "breakpoints": true
     }
   ]
 }

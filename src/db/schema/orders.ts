@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, jsonb, pgTable, primaryKey, text, uuid } from "drizzle-orm/pg-core";
+import { check, index, integer, jsonb, pgTable, primaryKey, text, unique, uuid } from "drizzle-orm/pg-core";
 import { actorType, createdAt, fulfilment, id, minor, orderStatus, ts } from "./common";
 import { menuItems } from "./menu";
 import { profiles } from "./profiles";
@@ -9,9 +9,10 @@ export const orders = pgTable(
   {
     id: id(),
     publicCode: text("public_code").notNull().unique(),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "restrict" }),
+    // Null once the customer has deleted their account: the order stays as a financial record.
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    // Set by the checkout form so a double submit returns the same order.
+    checkoutToken: text("checkout_token"),
     customerName: text("customer_name").notNull(),
     status: orderStatus("status").notNull().default("placed"),
     fulfilment: fulfilment("fulfilment").notNull(),
@@ -35,6 +36,7 @@ export const orders = pgTable(
   (t) => [
     index("orders_profile_idx").on(t.profileId),
     index("orders_status_idx").on(t.status),
+    unique("orders_checkout_token_unique").on(t.profileId, t.checkoutToken),
     check(
       "orders_money_nonneg",
       sql`${t.subtotalMinor} >= 0 and ${t.discountMinor} >= 0 and ${t.serviceChargeMinor} >= 0 and ${t.taxMinor} >= 0 and ${t.deliveryFeeMinor} >= 0 and ${t.totalMinor} >= 0`,

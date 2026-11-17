@@ -14,3 +14,6 @@ npm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 .pgdata.log
+
+# scratch logs from local runs
+/.*.log

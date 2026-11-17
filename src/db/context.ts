@@ -68,6 +68,15 @@ export async function withRequestContext<T>(
   return inTransaction(getPool(urlFor("DATABASE_URL", opts), opts?.max), ctx, fn);
 }
 
+/**
+ * Runs fn as an anonymous visitor: the `app` database role with no identity set, so every policy
+ * that needs one evaluates to false. The only table this reads is the active menu, which RLS
+ * leaves open on purpose (docs/phase-1-build-log.md). Never use it to write.
+ */
+export async function withPublicContext<T>(fn: (tx: Tx) => Promise<T>, opts?: ContextOptions): Promise<T> {
+  return drizzle(getPool(urlFor("DATABASE_URL", opts), opts?.max)).transaction(fn);
+}
+
 /** Runs fn as the system actor (webhooks, jobs, seeds) in one transaction (the `system` database role). */
 export async function withSystemContext<T>(fn: (tx: Tx) => Promise<T>, opts?: ContextOptions): Promise<T> {
   return inTransaction(getPool(urlFor("DATABASE_SYSTEM_URL", opts), opts?.max), { userId: "", role: "system" }, fn);
