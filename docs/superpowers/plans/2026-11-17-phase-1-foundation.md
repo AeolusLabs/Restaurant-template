@@ -21,7 +21,7 @@
 - The raw pool is imported only in `src/db/context.ts`, `scripts/`, and test helpers.
 - `domain/` has no vendor SDK, no HTTP and no database pool.
 - Order status changes only through `transitionOrder()`. Staff and customers have no `UPDATE` on `orders`.
-- Every route handler that touches the database or auth sets `export const runtime = 'nodejs'`.
+- Route handlers run on the Node.js runtime. With Cache Components enabled (the Next.js 16 scaffold default) a `runtime` export is forbidden, so none is written.
 - Validate config and env with Zod at boot. Nothing client-specific outside `config/restaurant.ts`.
 - Schema changes are applied to the development database in the same task that writes them.
 - Commit once per task, locally. Never push.

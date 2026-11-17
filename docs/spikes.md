@@ -36,3 +36,24 @@ Findings from the Phase 1 spikes. Each entry says what was proven and what is st
 **Known limits**
 - The identity is a plain session setting. Code that can run arbitrary SQL as the `app` role could call `set_config` itself. The defence is that application code never builds raw SQL from user input and only `src/db/context.ts` creates pools (enforced by a test in Task 14).
 - A vitest teardown warning ("close timed out") appears intermittently. All tests pass. It comes from the embedded Postgres child process handles, not the application code.
+
+## Spike 3: Better Auth (Task 6, 2026-11-17)
+
+Version 1.7.25. Docs read: better-auth.com/docs (v1.7 index).
+
+**Proven locally**
+- The Drizzle adapter lives in its own package: `@better-auth/drizzle-adapter` (`drizzleAdapter(db, { provider: "pg", schema })`).
+- Schema generation: `pnpm auth:schema` (runs `auth@latest generate --adapter drizzle --dialect postgresql`). The old `@better-auth/cli` package is not the 1.7 route.
+- `advanced.database.generateId: "uuid"` produces `uuid` columns on `user`, `session`, `account` and `verification`.
+- `auth.api.signUpEmail` and `signInEmail` work server-side. Passwords are stored hashed (scrypt) in `account.password`. A duplicate email and a wrong password both throw.
+- Better Auth runs as the `system` database role. Its four tables have RLS enabled and forced, one policy for `system`, and no grant at all for `app`.
+- The route handler is mounted lazily (`getAuth()`), so importing it at build time needs no database.
+
+**Findings that shaped the design**
+- `auth.api` accepts no caller-supplied transaction. A sign-up that must also write a profile and consent rows cannot be one transaction, so Task 11 creates the user, then the profile and consents in one transaction, and deletes the user if that second step fails.
+- `databaseHooks.user.create.after` runs after the insert commits, not inside it.
+- The docs do not say whether `disabledPaths` or `disableSignUp` also block the server-side `auth.api.signUpEmail`. Task 11 tests this directly.
+- Next.js 16 with Cache Components forbids a `runtime` export, so no route sets one. Node is the only runtime.
+
+**Not verified**
+- Session cookie behaviour through the Cloudflare proxy (needs a deployment).

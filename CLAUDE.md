@@ -28,7 +28,7 @@ Next.js (App Router) + TypeScript, Tailwind, Zod, Vitest, pnpm (Node 22 LTS). Ra
 - **Apply schema changes, do not just write them.** When a migration adds, renames or removes a column or table, apply it to the real database in the same task. A purely additive migration needs no extra confirmation. If you cannot apply it, say the change is incomplete and blocked, and do not call the feature done.
 - **One sanitizer plus a global safety net for sensitive fields.** Password hashes, tokens and secrets never reach a response. Use the shared serializers in `lib/sanitize.ts` (`toPublicUser()` and the others) at every call site, and keep the response-level key stripper in `lib/scrub.ts` active. Never hand-roll another destructure.
 - **Never respond before an async session callback finishes.** If a handler calls anything that regenerates or saves a session, send the response inside that callback or await it.
-- **Webhook handlers and payment code pin `runtime = 'nodejs'`.**
+- **Node.js runtime only.** Cache Components is enabled in `next.config.ts`, which makes Node the only runtime and forbids a `runtime` export. Never opt a route into the edge runtime.
 - **The browser never sends prices.** The server prices every order from the database and config.
 - **Redirect back from the payment page is not proof of payment.** Only a verified webhook (plus a provider verify call) moves an order to paid.
 - **No vendor-specific hosting APIs in business logic.** The build stays host-agnostic.
