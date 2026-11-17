@@ -1,16 +1,18 @@
+import { restaurantConfig } from "../../config/restaurant";
 import { loadEnv } from "@/lib/env";
 import { MockDeliveryProvider } from "./delivery/mock";
 import { MockLLMProvider } from "./llm/mock";
 import { StubNotificationProvider } from "./notification/stub";
 import { MockPaymentProvider } from "./payment/mock";
+import { PaystackProvider } from "./payment/paystack";
 import { getProviders, registerProvider, type Providers } from "./registry";
 import { MemoryStorageProvider } from "./storage/memory";
 
-// Built-in local fakes. To plug in a real service: add src/providers/<kind>/<vendor>.ts implementing the
-// interface in ./<kind>/types.ts, then register it here, for example:
-//   registerProvider("payment", "paystack", (env) => new PaystackProvider(env.PAYSTACK_SECRET_KEY!));
-// and set PAYMENT_PROVIDER=paystack. Business logic never changes. To remove a vendor, delete its file and line.
-registerProvider("payment", "mock", () => new MockPaymentProvider());
+// Local fakes plus the adapters written so far (Paystack). To plug in another service: add
+// src/providers/<kind>/<vendor>.ts implementing the interface in ./<kind>/types.ts, register it here, and set
+// the matching *_PROVIDER variable. Business logic never changes. To remove a vendor, delete its file and line.
+registerProvider("payment", "mock", () => new MockPaymentProvider(restaurantConfig.currency.code));
+registerProvider("payment", "paystack", (env) => new PaystackProvider({ secretKey: env.PAYSTACK_SECRET_KEY!, currency: restaurantConfig.currency.code }));
 registerProvider("delivery", "mock", () => new MockDeliveryProvider());
 registerProvider("notification", "stub", () => new StubNotificationProvider());
 registerProvider("llm", "mock", () => new MockLLMProvider());

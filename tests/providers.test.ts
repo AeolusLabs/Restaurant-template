@@ -4,6 +4,7 @@ import { loadEnv } from "../src/lib/env";
 import { getProviders } from "../src/providers";
 import { ProviderNotInstalledError, registerProvider } from "../src/providers/registry";
 import { WebhookSignatureError } from "../src/providers/payment/types";
+import { PaystackProvider } from "../src/providers/payment/paystack";
 import { MockPaymentProvider, signMockWebhook } from "../src/providers/payment/mock";
 import { MockDeliveryProvider, signMockDeliveryWebhook } from "../src/providers/delivery/mock";
 import { DeliveryProviderError, InsufficientWalletError, QuoteExpiredError, type DeliveryQuoteInput } from "../src/providers/delivery/types";
@@ -30,12 +31,9 @@ describe("provider registry", () => {
     expect(p.storage).toBeInstanceOf(MemoryStorageProvider);
   });
 
-  test("selecting paystack with no adapter throws ProviderNotInstalledError naming the adapter file", () => {
+  test("selecting paystack builds the Paystack adapter from the secret key", () => {
     const env = loadEnv({ ...baseEnv, PAYMENT_PROVIDER: "paystack", PAYSTACK_SECRET_KEY: "sk_test_x" });
-    const attempt = () => getProviders(env);
-    expect(attempt).toThrow(ProviderNotInstalledError);
-    expect(attempt).toThrow(/src\/providers\/payment\/paystack\.ts/);
-    expect(attempt).toThrow(/PAYMENT_PROVIDER=paystack/);
+    expect(getProviders(env).payment).toBeInstanceOf(PaystackProvider);
   });
 
   test("selecting chowdeck or s3 with no adapter names the right file", () => {
