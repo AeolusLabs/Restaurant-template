@@ -18,8 +18,10 @@ afterAll(async () => {
   await closeFixtures();
 });
 
+type SeedItem = { slug: string; name: string; priceMinor: number };
+const allSeedItems: SeedItem[] = SEED_MENU.categories.flatMap((c) => c.items.map((i): SeedItem => i));
 const slugs = SEED_MENU.categories.map((c) => c.slug);
-const itemSlugs = SEED_MENU.categories.flatMap((c) => c.items.map((i) => i.slug));
+const itemSlugs = allSeedItems.map((i) => i.slug);
 const counts = async () => ({
   categories: (await admin().query(`select count(*)::int as n from menu_categories where slug = any($1)`, [slugs])).rows[0].n,
   items: (await admin().query(`select count(*)::int as n from menu_items where slug = any($1)`, [itemSlugs])).rows[0].n,
@@ -63,7 +65,7 @@ describe("seedMenu", () => {
     await seedMenu({ url: urls.system });
     const rows = (await admin().query(`select price_minor, name from menu_items where slug = $1`, [slug])).rows;
     expect(rows).toHaveLength(1);
-    const seeded = SEED_MENU.categories.flatMap((c) => c.items).find((i) => i.slug === slug)!;
+    const seeded = allSeedItems.find((i) => i.slug === slug)!;
     // node-pg returns bigint as a string; the app reads it back as a number through Drizzle.
     expect({ price: Number(rows[0].price_minor), name: rows[0].name }).toEqual({ price: seeded.priceMinor, name: seeded.name });
   });
