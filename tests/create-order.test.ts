@@ -18,7 +18,8 @@ import { admin, closeFixtures, makeUser } from "./helpers/fixtures";
 
 const urls = inject("dbUrls");
 const tag = `co${Date.now().toString(36)}`;
-const NOW = new Date("2026-11-16T10:00:00Z");
+// Real time, so orders made here are never overdue for the expiry job another test file runs at the same moment.
+const NOW = new Date();
 
 const allDay = { open: "00:00", close: "23:59" };
 const config: RestaurantConfig = {

@@ -27,6 +27,8 @@ export class WebhookSignatureError extends Error {}
 export class PaymentProviderError extends Error {}
 
 export interface PaymentProvider {
+  /** Stored with every payment and webhook event, so records say which provider produced them. */
+  readonly name: string;
   initialize(input: PaymentInitInput): Promise<PaymentInit>;
   verify(reference: string): Promise<PaymentVerification>;
   /** Throws WebhookSignatureError unless the signature over the raw body is valid. */

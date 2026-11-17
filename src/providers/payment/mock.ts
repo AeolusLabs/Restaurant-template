@@ -18,6 +18,7 @@ export function signMockWebhook(rawBody: string): string {
 
 /** A working fake for development and tests. No network, no real money. */
 export class MockPaymentProvider implements PaymentProvider {
+  readonly name: string = "mock";
   readonly refunds: { reference: string; amountMinor: number; reason?: string }[] = [];
   private readonly payments = new Map<string, PaymentVerification>();
 
