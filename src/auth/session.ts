@@ -15,6 +15,13 @@ export type AuthDeps = { auth?: Auth; systemUrl?: string; appUrl?: string };
  * profile row, never from the session.
  */
 export async function getRequestContext(headers: Headers, deps: AuthDeps = {}): Promise<RequestContext | null> {
+  return (await getRequestIdentity(headers, deps))?.ctx ?? null;
+}
+
+export type RequestIdentity = { ctx: RequestContext; email: string; name: string };
+
+/** getRequestContext plus the account's email and name, for pages that show them or hand them to a provider. */
+export async function getRequestIdentity(headers: Headers, deps: AuthDeps = {}): Promise<RequestIdentity | null> {
   const session = await (deps.auth ?? getAuth()).api.getSession({ headers });
   if (!session) return null;
   const { rows } = await withSystemContext(
@@ -23,7 +30,11 @@ export async function getRequestContext(headers: Headers, deps: AuthDeps = {}): 
   );
   const profile = rows[0];
   if (!profile || profile.blocked_at || profile.deleted_at) return null;
-  return { userId: session.user.id, role: profile.role as AppRole };
+  return {
+    ctx: { userId: session.user.id, role: profile.role as AppRole },
+    email: session.user.email,
+    name: session.user.name,
+  };
 }
 
 export function requireRole(ctx: RequestContext | null, allowed: readonly AppRole[]): RequestContext {
