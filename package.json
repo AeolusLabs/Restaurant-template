@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:local": "tsx scripts/db-local.mts",
+    "db:bootstrap": "tsx scripts/db-bootstrap.mts",
+    "db:migrate": "tsx scripts/migrate.mts",
+    "setup": "pnpm db:bootstrap && pnpm db:migrate"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
