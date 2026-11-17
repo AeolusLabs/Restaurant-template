@@ -50,16 +50,25 @@ Do not guess. The docs conflict on the base URL (`api.chowdeck.com` or `api.rela
 
 ## Commands
 
+First run: copy `.env.example` to `.env`, then in one terminal `pnpm db:local` (a real PostgreSQL 18 on port 55432, no Docker) and in another `pnpm setup && pnpm dev`.
+
 ```
-pnpm setup          migrate, then seed the small menu
-pnpm dev            web and worker together
+pnpm db:local       start the local PostgreSQL 18 (keep it running)
+pnpm setup          bootstrap roles, migrate, seed (idempotent, safe to re-run)
+pnpm dev            the web app
+pnpm db:bootstrap   create the migrator, app and system roles and the database
 pnpm db:migrate     apply pending migrations
-pnpm db:seed        seed menu (idempotent)
-pnpm db:seed:demo   demo data (only when features.demo_mode)
-pnpm test           Vitest
+pnpm db:seed        seed the small menu, and the first owner if INITIAL_OWNER_* are set
+pnpm auth:schema    regenerate src/db/schema/auth.ts from the Better Auth config
+pnpm typecheck      next typegen, then tsc
+pnpm test           Vitest (starts its own throwaway PostgreSQL 18)
 ```
 
-These do not exist until Phase 1 builds them.
+Not built yet: the worker (Phase 2 onward) and `db:seed:demo` (Phase 9).
+
+Migrations: tables come from `drizzle-kit generate`, everything else (RLS, functions, triggers) from `drizzle-kit generate --custom`. Apply every migration to the dev database in the same task.
+
+Never point the dev scripts at a database you do not own. `bootstrapRoles` refuses anything that is not real PostgreSQL 18, and `db:local` refuses a port that is already in use.
 
 ## Design
 
