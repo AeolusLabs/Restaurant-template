@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { loadEnv } from "../src/lib/env";
 import { getProviders } from "../src/providers";
-import { ProviderNotInstalledError, registerProvider } from "../src/providers/registry";
+import { registerProvider } from "../src/providers/registry";
 import { WebhookSignatureError } from "../src/providers/payment/types";
 import { PaystackProvider } from "../src/providers/payment/paystack";
 import { MockPaymentProvider, signMockWebhook } from "../src/providers/payment/mock";

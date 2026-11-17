@@ -7,7 +7,16 @@ import { phoneSchema } from "@/domain/checkout/order-input";
 
 type Opts = { appUrl?: string };
 
-const nameSchema = z.string().trim().min(1, "Enter your name").max(200);
+// One object schema, so a rejection names the field ("phone", "fullName") and the form can say where.
+const profileSchema = z.object({
+  fullName: z.string().trim().min(1, "Enter your name").max(200),
+  phone: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => v || null)
+    .pipe(z.union([phoneSchema, z.null()])),
+});
 
 /** Changes the caller's own name and phone. An empty phone clears it. The database allows nothing else. */
 export async function updateProfile(
@@ -15,9 +24,7 @@ export async function updateProfile(
   input: { fullName: string; phone?: string | null },
   opts: Opts = {},
 ): Promise<void> {
-  const fullName = nameSchema.parse(input.fullName);
-  const raw = input.phone?.trim();
-  const phone = raw ? phoneSchema.parse(raw) : null;
+  const { fullName, phone } = profileSchema.parse(input);
   await withRequestContext(ctx, (tx) => tx.update(profiles).set({ fullName, phone }).where(eq(profiles.id, ctx.userId)), { url: opts.appUrl });
 }
 

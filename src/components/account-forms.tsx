@@ -17,13 +17,14 @@ function Submit({ children, variant = "primary" }: { children: string; variant?:
 export function ProfileForm({ fullName, phone }: { fullName: string; phone: string }) {
   const [state, action] = useActionState(updateProfileAction, undefined);
   const fe = state?.fieldErrors ?? {};
+  const v = state?.values;
   return (
     <form action={action} className="space-y-4" noValidate>
       <div>
         <label htmlFor="fullName" className={label}>
           Name
         </label>
-        <input id="fullName" name="fullName" defaultValue={fullName} autoComplete="name" className={field} required aria-invalid={!!fe.fullName} aria-describedby={fe.fullName ? "fullName-error" : undefined} />
+        <input id="fullName" name="fullName" defaultValue={v?.fullName ?? fullName} key={`f${v?.fullName}`} autoComplete="name" className={field} required aria-invalid={!!fe.fullName} aria-describedby={fe.fullName ? "fullName-error" : undefined} />
         {fe.fullName && (
           <p id="fullName-error" className="mt-1 text-sm text-bad" role="alert">
             {fe.fullName}
@@ -34,7 +35,7 @@ export function ProfileForm({ fullName, phone }: { fullName: string; phone: stri
         <label htmlFor="phone" className={label}>
           Phone number
         </label>
-        <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" defaultValue={phone} className={field} aria-invalid={!!fe.phone} aria-describedby={fe.phone ? "phone-error" : undefined} />
+        <input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" defaultValue={v?.phone ?? phone} key={`p${v?.phone}`} className={field} aria-invalid={!!fe.phone} aria-describedby={fe.phone ? "phone-error" : undefined} />
         {fe.phone && (
           <p id="phone-error" className="mt-1 text-sm text-bad" role="alert">
             {fe.phone}

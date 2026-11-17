@@ -33,6 +33,7 @@ export function CheckoutForm({ days, defaultPhone, checkoutToken, address }: Pro
   const { quote, loading } = useQuote(lines);
   const [state, action] = useActionState(placeOrderAction, undefined);
   const fe = state?.fieldErrors ?? {};
+  const v = state?.values ?? {};
 
   if (lines.length === 0) {
     return (
@@ -105,7 +106,7 @@ export function CheckoutForm({ days, defaultPhone, checkoutToken, address }: Pro
           <label htmlFor="pickupAt" className={label}>
             Pickup time
           </label>
-          <select id="pickupAt" name="pickupAt" className={field} defaultValue={days[0].slots[0].value} aria-describedby={fe.pickupAt ? "pickupAt-error" : undefined} aria-invalid={!!fe.pickupAt}>
+          <select id="pickupAt" name="pickupAt" className={field} defaultValue={v.pickupAt || days[0].slots[0].value} key={`s${v.pickupAt}`} aria-describedby={fe.pickupAt ? "pickupAt-error" : undefined} aria-invalid={!!fe.pickupAt}>
             {days.map((d) => (
               <optgroup key={d.day} label={d.day}>
                 {d.slots.map((s) => (
@@ -132,7 +133,8 @@ export function CheckoutForm({ days, defaultPhone, checkoutToken, address }: Pro
             type="tel"
             inputMode="tel"
             autoComplete="tel"
-            defaultValue={defaultPhone}
+            defaultValue={v.phone ?? defaultPhone}
+            key={`p${v.phone}`}
             className={field}
             aria-describedby={`phone-help${fe.phone ? " phone-error" : ""}`}
             aria-invalid={!!fe.phone}
@@ -151,7 +153,7 @@ export function CheckoutForm({ days, defaultPhone, checkoutToken, address }: Pro
           <label htmlFor="notes" className={label}>
             Note for the kitchen <span className="font-normal text-muted">(optional)</span>
           </label>
-          <textarea id="notes" name="notes" rows={2} maxLength={200} className={field} aria-describedby={fe.notes ? "notes-error" : undefined} />
+          <textarea id="notes" name="notes" rows={2} maxLength={200} defaultValue={v.notes} key={`n${v.notes}`} className={field} aria-describedby={fe.notes ? "notes-error" : undefined} />
           {fe.notes && (
             <p id="notes-error" className="mt-1 text-sm text-bad" role="alert">
               {fe.notes}

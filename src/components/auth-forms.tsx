@@ -26,6 +26,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 export function SignInForm({ next }: { next: string }) {
   const [state, action] = useActionState(signInAction, undefined);
   const fe = state?.fieldErrors ?? {};
+  const v = state?.values ?? {};
   return (
     <form action={action} className="space-y-5" noValidate>
       <input type="hidden" name="next" value={next} />
@@ -33,7 +34,7 @@ export function SignInForm({ next }: { next: string }) {
         <label htmlFor="email" className={label}>
           Email
         </label>
-        <input id="email" name="email" type="email" autoComplete="email" inputMode="email" className={field} required aria-invalid={!!fe.email} aria-describedby={fe.email ? "email-error" : undefined} />
+        <input id="email" name="email" type="email" autoComplete="email" inputMode="email" defaultValue={v.email} key={`e${v.email}`} className={field} required aria-invalid={!!fe.email} aria-describedby={fe.email ? "email-error" : undefined} />
         <FieldError id="email-error" message={fe.email} />
       </div>
       <div>
@@ -62,6 +63,7 @@ export function SignInForm({ next }: { next: string }) {
 export function SignUpForm({ next }: { next: string }) {
   const [state, action] = useActionState(signUpAction, undefined);
   const fe = state?.fieldErrors ?? {};
+  const v = state?.values ?? {};
   const box = "mt-0.5 h-5 w-5 shrink-0 accent-[var(--brand)]";
   return (
     <form action={action} className="space-y-5" noValidate>
@@ -70,14 +72,14 @@ export function SignUpForm({ next }: { next: string }) {
         <label htmlFor="name" className={label}>
           Your name
         </label>
-        <input id="name" name="name" type="text" autoComplete="name" className={field} required aria-invalid={!!fe.name} aria-describedby={fe.name ? "name-error" : undefined} />
+        <input id="name" name="name" type="text" autoComplete="name" defaultValue={v.name} key={`n${v.name}`} className={field} required aria-invalid={!!fe.name} aria-describedby={fe.name ? "name-error" : undefined} />
         <FieldError id="name-error" message={fe.name} />
       </div>
       <div>
         <label htmlFor="email" className={label}>
           Email
         </label>
-        <input id="email" name="email" type="email" autoComplete="email" inputMode="email" className={field} required aria-invalid={!!fe.email} aria-describedby={fe.email ? "email-error" : undefined} />
+        <input id="email" name="email" type="email" autoComplete="email" inputMode="email" defaultValue={v.email} key={`e${v.email}`} className={field} required aria-invalid={!!fe.email} aria-describedby={fe.email ? "email-error" : undefined} />
         <FieldError id="email-error" message={fe.email} />
       </div>
       <div>
@@ -94,7 +96,7 @@ export function SignUpForm({ next }: { next: string }) {
       <fieldset className="space-y-3">
         <legend className="mb-1 text-sm font-semibold">Before you continue</legend>
         <label className="flex min-h-11 items-start gap-3">
-          <input type="checkbox" name="terms" className={box} aria-describedby={fe.terms ? "terms-error" : undefined} />
+          <input type="checkbox" name="terms" defaultChecked={v.terms === "on"} key={`t${v.terms}`} className={box} aria-describedby={fe.terms ? "terms-error" : undefined} />
           <span>
             I accept the{" "}
             <Link href="/legal/terms" target="_blank" rel="noopener" className="font-semibold text-brand underline underline-offset-4">
@@ -104,7 +106,7 @@ export function SignUpForm({ next }: { next: string }) {
           </span>
         </label>
         <label className="flex min-h-11 items-start gap-3">
-          <input type="checkbox" name="privacy" className={box} aria-describedby={fe.terms ? "terms-error" : undefined} />
+          <input type="checkbox" name="privacy" defaultChecked={v.privacy === "on"} key={`p${v.privacy}`} className={box} aria-describedby={fe.terms ? "terms-error" : undefined} />
           <span>
             I have read the{" "}
             <Link href="/legal/privacy" target="_blank" rel="noopener" className="font-semibold text-brand underline underline-offset-4">
@@ -115,7 +117,7 @@ export function SignUpForm({ next }: { next: string }) {
         </label>
         <FieldError id="terms-error" message={fe.terms} />
         <label className="flex min-h-11 items-start gap-3">
-          <input type="checkbox" name="marketing" className={box} />
+          <input type="checkbox" name="marketing" defaultChecked={v.marketing === "on"} key={`m${v.marketing}`} className={box} />
           <span>
             Send me news and offers. <span className="text-muted">Optional. You can change this any time.</span>
           </span>

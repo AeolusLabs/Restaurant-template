@@ -23,7 +23,8 @@ export async function mockPayAction(formData: FormData): Promise<void> {
 
   try {
     await completeMockPayment(provider, { reference, result }, handlePaymentWebhook);
-  } catch {
+  } catch (err) {
+    console.error("mock payment failed", err instanceof Error ? err.message : err);
     // The mock keeps payments in memory, so a server restart forgets them.
     redirect(`/mock-pay/${encodeURIComponent(reference)}?lost=1`);
   }

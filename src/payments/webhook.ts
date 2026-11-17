@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { withSystemContext } from "@/db/context";
 import { webhookEvents } from "@/db/schema";
-import { WebhookSignatureError, type PaymentProvider } from "@/providers/payment/types";
+import { providers } from "@/providers";
+import { isWebhookSignatureError, type PaymentProvider } from "@/providers/payment/types";
 import { settlePayment, type SettleOutcome } from "./apply-payment";
 
 export type WebhookResult = {
@@ -21,13 +22,13 @@ export type WebhookDeps = { provider?: PaymentProvider; systemUrl?: string };
  * reached, say) the transaction rolls back, the event is not stored, and the provider's retry is processed.
  */
 export async function handlePaymentWebhook(rawBody: string, headers: Headers, deps: WebhookDeps = {}): Promise<WebhookResult> {
-  const provider = deps.provider ?? (await import("@/providers")).providers().payment;
+  const provider = deps.provider ?? providers().payment;
 
   let event;
   try {
     event = provider.parseWebhook(rawBody, headers);
   } catch (err) {
-    if (err instanceof WebhookSignatureError) return { status: 401, outcome: "bad_signature" };
+    if (isWebhookSignatureError(err)) return { status: 401, outcome: "bad_signature" };
     return { status: 400, outcome: "bad_payload" };
   }
 

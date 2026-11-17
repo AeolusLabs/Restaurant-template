@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { MockPaymentProvider, signMockWebhook } from "./mock";
+import { signMockWebhook, type MockPaymentProvider } from "./mock";
 import type { PaymentProvider } from "./types";
 
 /**
@@ -12,10 +12,11 @@ export async function completeMockPayment(
   input: { reference: string; result: "success" | "failed" },
   deliver: (rawBody: string, headers: Headers) => Promise<unknown>,
 ): Promise<void> {
-  if (!(provider instanceof MockPaymentProvider)) {
+  // Not instanceof: after a development reload the cached provider can come from an older copy of the class.
+  if (provider.name !== "mock" || typeof (provider as Partial<MockPaymentProvider>).simulatePayment !== "function") {
     throw new Error("The fake payment page only works with PAYMENT_PROVIDER=mock");
   }
-  provider.simulatePayment(input.reference, input.result);
+  (provider as MockPaymentProvider).simulatePayment(input.reference, input.result);
   if (input.result !== "success") return;
   const body = JSON.stringify({ id: `evt_${randomUUID()}`, event: "charge.success", data: { reference: input.reference } });
   await deliver(body, new Headers({ "x-mock-signature": signMockWebhook(body) }));

@@ -172,6 +172,15 @@ describe("payment webhook", () => {
     expect(await orderStatus(o.orderId)).toBe("placed");
   });
 
+  test("a signature failure is recognised even when it comes from another copy of the error class", async () => {
+    // After a development reload, or across bundles, instanceof can fail for the same error.
+    provider.parseWebhook = () => {
+      throw Object.assign(new Error("invalid webhook signature"), { name: "WebhookSignatureError" });
+    };
+    const res = await handlePaymentWebhook("{}", new Headers(), deps());
+    expect(res.status).toBe(401);
+  });
+
   test("a signed body that is not valid JSON is refused with 400 and stores nothing", async () => {
     const before = (await admin().query(`select count(*)::int as n from webhook_events`)).rows[0].n;
     expect((await deliver("x", { body: "{not json" })).status).toBe(400);

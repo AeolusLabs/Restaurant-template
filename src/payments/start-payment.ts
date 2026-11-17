@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { withRequestContext, withSystemContext, type RequestContext } from "@/db/context";
 import { orders, payments } from "@/db/schema";
 import { OrderNotFoundError } from "@/domain/orders/transitions";
+import { loadEnv } from "@/lib/env";
+import { providers } from "@/providers";
 import type { PaymentProvider } from "@/providers/payment/types";
 
 export type StartPaymentError = "not_payable" | "expired" | "nothing_to_pay" | "provider_failed";
@@ -27,11 +29,8 @@ export type StartPaymentDeps = {
   systemUrl?: string;
 };
 
-async function defaults(deps: StartPaymentDeps): Promise<{ provider: PaymentProvider; baseUrl: string }> {
-  if (deps.provider && deps.baseUrl) return { provider: deps.provider, baseUrl: deps.baseUrl };
-  // Loaded on demand so importing this module never reads the environment.
-  const { providers } = await import("@/providers");
-  const { loadEnv } = await import("@/lib/env");
+function defaults(deps: StartPaymentDeps): { provider: PaymentProvider; baseUrl: string } {
+  // Read lazily: only when a caller did not supply them, so tests need no environment.
   return { provider: deps.provider ?? providers().payment, baseUrl: deps.baseUrl ?? loadEnv().APP_URL };
 }
 
@@ -45,7 +44,7 @@ export async function startPayment(
   publicCode: string,
   deps: StartPaymentDeps,
 ): Promise<{ authorizationUrl: string; reference: string }> {
-  const { provider, baseUrl } = await defaults(deps);
+  const { provider, baseUrl } = defaults(deps);
   const now = deps.now ?? new Date();
 
   const order = await withRequestContext(

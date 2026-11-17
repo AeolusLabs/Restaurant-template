@@ -5,7 +5,7 @@ import { ZodError } from "zod";
 import { ActiveOrderError, deleteCustomerAccount } from "@/account/delete";
 import { setMarketingConsent, updateProfile } from "@/account/profile";
 import { getIdentity } from "@/auth/customer";
-import { fieldErrors, text, type FormState } from "@/lib/form";
+import { echo, fieldErrors, text, type FormState } from "@/lib/form";
 
 async function customer() {
   const identity = await getIdentity();
@@ -20,11 +20,11 @@ export async function updateProfileAction(_prev: FormState, formData: FormData):
   } catch (err) {
     if (err instanceof ZodError) {
       const errors = fieldErrors(err);
-      return { fieldErrors: { fullName: errors.fullName ?? "", phone: errors.phone ?? "" } };
+      return { fieldErrors: { fullName: errors.fullName ?? "", phone: errors.phone ?? "" }, values: echo(formData, ["fullName", "phone"]) };
     }
     throw err;
   }
-  return { error: undefined, fieldErrors: { saved: "Saved" } };
+  return { fieldErrors: { saved: "Saved" }, values: echo(formData, ["fullName", "phone"]) };
 }
 
 export async function setMarketingAction(formData: FormData): Promise<void> {

@@ -3,6 +3,7 @@ import { withSystemContext } from "@/db/context";
 import { orders, payments } from "@/db/schema";
 import { transitionOrderIn } from "@/db/transition-order";
 import { settlePayment } from "@/payments/apply-payment";
+import { providers } from "@/providers";
 import type { PaymentProvider } from "@/providers/payment/types";
 
 export type ExpireDeps = { provider?: PaymentProvider; systemUrl?: string; now?: Date; batch?: number };
@@ -17,7 +18,7 @@ type One = "expired" | "paid" | "noop";
  * alone and tried again on the next run. Safe to run repeatedly and from several workers.
  */
 export async function expireUnpaidOrders(deps: ExpireDeps = {}): Promise<ExpireResult> {
-  const provider = deps.provider ?? (await import("@/providers")).providers().payment;
+  const provider = deps.provider ?? providers().payment;
   const now = deps.now ?? new Date();
   const sys = { url: deps.systemUrl };
 

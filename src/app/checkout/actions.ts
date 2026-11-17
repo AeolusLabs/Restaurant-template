@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getIdentity } from "@/auth/customer";
 import { OrderRejectedError, createPickupOrder } from "@/db/orders";
 import { createOrderSchema } from "@/domain/checkout/order-input";
-import { fieldErrors, text, type FormState } from "@/lib/form";
+import { echo, fieldErrors, text, type FormState } from "@/lib/form";
 import { PaymentStartError, startPayment } from "@/payments/start-payment";
 
 const REJECTIONS: Record<OrderRejectedError["code"], string> = {
@@ -26,11 +26,12 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
   const identity = await getIdentity();
   if (!identity) redirect("/sign-in?next=%2Fcheckout");
 
+  const values = echo(formData, ["pickupAt", "phone", "notes"]);
   let lines: unknown;
   try {
     lines = JSON.parse(text(formData, "lines"));
   } catch {
-    return { error: "Your cart could not be read. Go back to your cart and try again." };
+    return { error: "Your cart could not be read. Go back to your cart and try again.", values };
   }
   const expected = text(formData, "expectedTotalMinor");
   const parsed = createOrderSchema.safeParse({
@@ -43,10 +44,10 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
   });
   if (!parsed.success) {
     const errors = fieldErrors(parsed.error);
-    if (errors.lines) return { error: "Your cart is empty or not valid. Go back to your cart and try again." };
+    if (errors.lines) return { error: "Your cart is empty or not valid. Go back to your cart and try again.", values };
     if (errors.pickupAt) errors.pickupAt = "Choose a pickup time";
-    if (errors.checkoutToken || errors.expectedTotalMinor) return { error: "Please reload the page and try again." };
-    return { fieldErrors: errors };
+    if (errors.checkoutToken || errors.expectedTotalMinor) return { error: "Please reload the page and try again.", values };
+    return { fieldErrors: errors, values };
   }
 
   let code: string;
@@ -54,7 +55,7 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
     code = (await createPickupOrder(identity.ctx, parsed.data)).order.publicCode;
   } catch (err) {
     if (err instanceof OrderRejectedError) {
-      return err.code === "invalid_slot" ? { fieldErrors: { pickupAt: REJECTIONS.invalid_slot } } : { error: REJECTIONS[err.code] };
+      return err.code === "invalid_slot" ? { fieldErrors: { pickupAt: REJECTIONS.invalid_slot }, values } : { error: REJECTIONS[err.code], values };
     }
     throw err;
   }

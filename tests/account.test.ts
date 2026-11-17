@@ -165,6 +165,14 @@ describe("setMarketingConsent", () => {
 });
 
 describe("updateProfile", () => {
+  test("a rejected field is named, so the form can show the message next to it", async () => {
+    const me = await realCustomer("profilepath");
+    const phoneErr = await updateProfile(me.ctx, { fullName: "Ada", phone: "call me" }, { appUrl: urls.app }).catch((e) => e);
+    expect(phoneErr.issues.map((i: { path: unknown[] }) => i.path[0])).toEqual(["phone"]);
+    const nameErr = await updateProfile(me.ctx, { fullName: " ", phone: null }, { appUrl: urls.app }).catch((e) => e);
+    expect(nameErr.issues.map((i: { path: unknown[] }) => i.path[0])).toEqual(["fullName"]);
+  });
+
   test("changes the caller's own name and phone", async () => {
     const me = await realCustomer("profile");
     await updateProfile(me.ctx, { fullName: "  Ada King  ", phone: "0803 111 2222" }, { appUrl: urls.app });

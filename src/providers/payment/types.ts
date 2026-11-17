@@ -23,7 +23,13 @@ export type PaymentEvent = {
   raw: unknown;
 };
 
-export class WebhookSignatureError extends Error {}
+export class WebhookSignatureError extends Error {
+  override name = "WebhookSignatureError";
+}
+
+/** instanceof is not enough: after a development reload, or across bundles, there can be two copies of the class. */
+export const isWebhookSignatureError = (err: unknown): boolean =>
+  err instanceof WebhookSignatureError || (err instanceof Error && err.name === "WebhookSignatureError");
 export class PaymentProviderError extends Error {}
 
 export interface PaymentProvider {

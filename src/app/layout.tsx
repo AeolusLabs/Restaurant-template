@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <MoneyProvider format={moneyFormat}>
           <a
             href="#main"
-            className="absolute left-2 top-2 z-50 -translate-y-20 rounded-lg bg-brand px-4 py-2 font-semibold text-on-brand focus:translate-y-0"
+            className="absolute left-2 top-2 z-50 inline-flex min-h-11 -translate-y-20 items-center rounded-lg bg-brand px-4 py-2 font-semibold text-on-brand focus:translate-y-0"
           >
             Skip to content
           </a>
