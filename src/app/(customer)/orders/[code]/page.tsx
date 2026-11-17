@@ -24,16 +24,22 @@ async function Order({ params, searchParams }: { params: PageProps<"/orders/[cod
   const found = await getOrderForCustomer(ctx, code);
   if (!found) notFound();
   const { order, items } = found;
-  const { payment } = await searchParams;
+  const { payment, cancel } = await searchParams;
 
   const unpaid = order.status === "placed";
   const stillPayable = isPayable(order, new Date());
+  const cancellable = unpaid || order.status === "paid";
 
   return (
     <div className="space-y-6">
       {payment === "failed" && unpaid && (
         <p className="rounded-lg bg-warn-soft p-4 font-semibold text-warn" role="alert">
           We could not start your payment. Nothing was charged. You can try again below.
+        </p>
+      )}
+      {cancel === "too_late" && (
+        <p className="rounded-lg bg-warn-soft p-4 font-semibold text-warn" role="alert">
+          The restaurant has already started on this order, so it cannot be cancelled here. Please contact them.
         </p>
       )}
       <OrderTracker
@@ -43,19 +49,21 @@ async function Order({ params, searchParams }: { params: PageProps<"/orders/[cod
         address={[c.address.line1, c.address.area, c.address.city].filter(Boolean).join(", ")}
         charges={c.charges}
       />
-      {stillPayable && (
+      {cancellable && (
         <div className="flex flex-wrap items-center gap-3">
-          <form action={payAgainAction}>
-            <input type="hidden" name="code" value={code} />
-            <button type="submit" className={button.primary}>
-              Pay now
-            </button>
-          </form>
+          {stillPayable && (
+            <form action={payAgainAction}>
+              <input type="hidden" name="code" value={code} />
+              <button type="submit" className={button.primary}>
+                Pay now
+              </button>
+            </form>
+          )}
           <details className="group">
             <summary className={`${button.quiet} cursor-pointer list-none`}>Cancel this order</summary>
             <form action={cancelOrderAction} className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-line p-3">
               <input type="hidden" name="code" value={code} />
-              <span>Cancel this unpaid order?</span>
+              <span>{unpaid ? "Cancel this unpaid order?" : "Cancel this order? You will be refunded in full."}</span>
               <button type="submit" className={button.danger}>
                 Yes, cancel it
               </button>

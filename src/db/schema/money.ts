@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, jsonb, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
+import { check, index, jsonb, pgTable, text, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { createdAt, id, minor, paymentStatus, refundStatus, ts } from "./common";
 import { orders } from "./orders";
 
@@ -35,7 +35,12 @@ export const refunds = pgTable(
     createdBy: uuid("created_by"),
     createdAt: createdAt(),
   },
-  (t) => [index("refunds_payment_idx").on(t.paymentId), check("refunds_amount_positive", sql`${t.amountMinor} > 0`)],
+  (t) => [
+    index("refunds_payment_idx").on(t.paymentId),
+    check("refunds_amount_positive", sql`${t.amountMinor} > 0`),
+    // A payment is refunded once. A refund the provider refused (failed) does not count, so it can be retried.
+    uniqueIndex("refunds_one_live_per_payment").on(t.paymentId).where(sql`${t.status} <> 'failed'`),
+  ],
 );
 
 export const webhookEvents = pgTable(

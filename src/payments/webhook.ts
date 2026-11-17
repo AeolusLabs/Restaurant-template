@@ -4,11 +4,12 @@ import { webhookEvents } from "@/db/schema";
 import { providers } from "@/providers";
 import { isWebhookSignatureError, type PaymentProvider } from "@/providers/payment/types";
 import { settlePayment, type SettleOutcome } from "./apply-payment";
+import { markRefundProcessed } from "./refund";
 
 export type WebhookResult = {
   /** 401 for a bad signature, 400 for a body that cannot be read, 200 for everything we accepted. */
   status: 200 | 400 | 401;
-  outcome: SettleOutcome | "duplicate" | "ignored" | "bad_signature" | "bad_payload";
+  outcome: SettleOutcome | "refund_recorded" | "duplicate" | "ignored" | "bad_signature" | "bad_payload";
 };
 
 export type WebhookDeps = { provider?: PaymentProvider; systemUrl?: string };
@@ -41,8 +42,13 @@ export async function handlePaymentWebhook(rawBody: string, headers: Headers, de
         .returning({ id: webhookEvents.id });
       if (!stored) return "duplicate" as const;
 
-      // Only a successful charge is acted on. Anything else is kept on record and acknowledged.
-      const result = event.type === "charge.success" ? await settlePayment(tx, event.reference, provider) : ("ignored" as const);
+      // A successful charge and a processed refund are acted on. Anything else is kept on record and acknowledged.
+      const result =
+        event.type === "charge.success"
+          ? await settlePayment(tx, event.reference, provider)
+          : event.type === "refund.processed"
+            ? await markRefundProcessed(tx, event.reference)
+            : ("ignored" as const);
       await tx.update(webhookEvents).set({ processedAt: new Date() }).where(eq(webhookEvents.id, stored.id));
       return result;
     },

@@ -3,7 +3,7 @@ import { ForbiddenError } from "@/auth/session";
 import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
 import { alerts, auditLog, orders } from "./schema";
 
-export type AlertKind = "payment_mismatch" | "payment_late" | "payment_duplicate";
+export type AlertKind = "payment_mismatch" | "payment_late" | "payment_duplicate" | "refund_failed";
 export type Alert = {
   id: string;
   kind: string;

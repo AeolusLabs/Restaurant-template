@@ -45,7 +45,8 @@ export const TRANSITIONS: readonly TransitionRule[] = [
   { from: "delivery_failed", to: "ready", actors: MANAGEMENT },
   { from: "delivery_failed", to: "out_for_delivery", actors: MANAGEMENT },
   { from: "delivery_failed", to: "cancelled", actors: MANAGEMENT },
-  { from: "cancelled", to: "refunded", actors: MANAGEMENT },
+  // The system refunds a customer who cancels their own paid order.
+  { from: "cancelled", to: "refunded", actors: ["system", ...MANAGEMENT] },
   { from: "completed", to: "refunded", actors: MANAGEMENT },
 ];
 

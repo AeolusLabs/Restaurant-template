@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "refunds_one_live_per_payment" ON "refunds" USING btree ("payment_id") WHERE "refunds"."status" <> 'failed';
