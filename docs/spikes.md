@@ -63,3 +63,12 @@ Version 1.7.25. Docs read: better-auth.com/docs (v1.7 index).
 `pnpm db:local` reported success on port 54329 while another project's PGlite server already held `127.0.0.1:54329`. The embedded Postgres had bound only `[::1]`, so `pnpm setup` (using `127.0.0.1`) ran against the other server and changed roles, schema ownership and privileges there. It was caught when the Task 7 migration hit tables that were not ours.
 
 Fixes in this repo: the dev port is now 55432, `startCluster` refuses a port in use on IPv4 or IPv6 loopback, and `bootstrapRoles` refuses to run unless the server is real PostgreSQL 18 (never PGlite). Both are covered by `tests/cluster-safety.test.ts`.
+
+## Perimeter and end-to-end check (Task 13, 2026-11-17)
+
+Run against the real app (`next dev`) and the dev database, over HTTP with `curl`:
+- A request with the origin-lock header returns 200 with the security headers. Without the header it returns 403.
+- `POST /api/auth/sign-up/email` returns 403 "Sign up through the application." No user is created.
+- Signing in as the seeded owner returns 200 and a `better-auth.session_token` cookie (HttpOnly, SameSite=Lax).
+
+Not run: the Dockerfile (no Docker here), anything on Railway, anything behind Cloudflare.

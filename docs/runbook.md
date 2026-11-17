@@ -1,0 +1,81 @@
+# Runbook
+
+Operating notes for deploying and running restaurant-template on Railway behind Cloudflare.
+Anything marked **verify** comes from vendor docs or reasoning and has not been run against a live account.
+
+## 1. Railway project layout
+
+One Railway project per restaurant, with:
+- `web` service: this repo, built from the `Dockerfile` (`runner` target) or Railpack. The only service with a public domain.
+- PostgreSQL 18 service, with the connection pooler (PgBouncer, transaction mode) enabled for `web`.
+- One storage bucket (private, S3-compatible).
+- `worker` service: added in Phase 2 or later, same repo, different start command.
+
+The `web` service talks to Postgres over Railway's private network (`*.railway.internal`).
+
+## 2. Database setup
+
+Roles and database are created by a script, not by hand. Run it once against the new Postgres from your own machine, using Railway's public TCP proxy URL for the default superuser:
+
+```
+DATABASE_ADMIN_URL=postgres://postgres:<password>@<proxy-host>:<port>/postgres \
+DATABASE_MIGRATOR_URL=postgres://migrator:<new password>@<proxy-host>:<port>/restaurant \
+DATABASE_URL=postgres://app:<new password>@<proxy-host>:<port>/restaurant \
+DATABASE_SYSTEM_URL=postgres://system:<new password>@<proxy-host>:<port>/restaurant \
+pnpm setup
+```
+
+`db:bootstrap` refuses any server that is not real PostgreSQL 18, so a wrong target fails before it changes anything. After this, the running service uses the **private** URLs:
+
+| Variable | Used by | Points at |
+|---|---|---|
+| `DATABASE_URL` | web, user requests (`app` role) | the pooled (PgBouncer) private URL |
+| `DATABASE_UNPOOLED_URL` | LISTEN/NOTIFY and the job queue (later phases) | the direct private URL |
+| `DATABASE_SYSTEM_URL` | web and worker, webhooks, jobs, Better Auth (`system` role) | the pooled private URL |
+| `DATABASE_MIGRATOR_URL` | migrations only, never set on the running service | the direct URL |
+| `DATABASE_ADMIN_URL` | `db:bootstrap` only, never set on the running service | the direct URL |
+
+Run `pnpm db:migrate` from your machine (or CI) before each deploy that adds a migration. Migrations are additive-first; apply them in the same change that needs them.
+
+## 3. Environment variables
+
+`.env.example` lists every variable. Set the rest on the `web` service in Railway:
+`BETTER_AUTH_SECRET` (32 or more random characters), `APP_URL` (the public https URL), `ORIGIN_LOCK_SECRET` (section 6), `TURNSTILE_SECRET_KEY`, and the provider selectors. With no provider keys set, every provider stays on its local fake, so the app never calls a real service by accident. `INITIAL_OWNER_EMAIL` and `INITIAL_OWNER_PASSWORD` create the first owner on `db:seed`; remove both after the first run.
+
+## 4. Backups and point-in-time recovery
+
+Railway documents daily, weekly and monthly volume backups (6 days, 27 days and 89 days retention) and a point-in-time recovery (PITR) option with roughly a four-week window. **Both are switched on by hand per service. Do it at provisioning, before real data exists.** Which Railway plans include them is not documented. **verify** before launch.
+
+Restore rehearsal, once before launch and after any change to how data is stored:
+1. Take a manual backup, then add a throwaway order row.
+2. Restore the backup into a new service (Railway restores into a new volume or a sibling service, never over the live one).
+3. Confirm the restored database opens, the migrations table is intact, and the throwaway row is absent.
+4. Delete the restored service. Record the date and who ran it here.
+
+## 5. Secret rotation
+
+| Secret | Steps | Effect |
+|---|---|---|
+| `BETTER_AUTH_SECRET` | Set the new value, redeploy. | Every session is signed out. |
+| Database role passwords | Put the new password in the three `DATABASE_*_URL` values, run `pnpm db:bootstrap` (it re-sets passwords), then update Railway variables and redeploy. | A short window where the old password stops working. |
+| `ORIGIN_LOCK_SECRET` | Change the Cloudflare Transform Rule and the Railway variable together. | Requests fail with 403 if the two differ for a moment. Do it in a quiet minute. |
+| Paystack, Chowdeck keys | Rotate in the vendor dashboard, update Railway variables. | Pending webhooks signed with the old secret are rejected. |
+
+## 6. Cloudflare
+
+- Buy the domain at Cloudflare Registrar (at cost), so its nameservers are Cloudflare's. A `.ng` domain may not be sold there: **verify**, otherwise register with a NiRA-accredited registrar and point the nameservers at Cloudflare.
+- DNS: a proxied (orange-cloud) CNAME from the domain to the Railway `web` custom domain.
+- SSL/TLS mode **Full (strict)**. **verify** the certificate setup for a Railway custom domain behind the proxy.
+- **Origin lock.** A Transform Rule adds the request header `x-origin-lock: <ORIGIN_LOCK_SECRET>` to every proxied request. `src/proxy.ts` rejects requests without it with 403. Railway's own `*.up.railway.app` URL then cannot be used to skip the WAF. Disable that URL too if Railway allows.
+- WAF: managed rules and bot protection on. Rate limits on login and checkout paths. A skip rule for `/api/webhooks/*` so Paystack and Chowdeck are not challenged; their signature checks are the gate there.
+- Turnstile on sign-up, sign-in and checkout. The server verifies the token (Phase 2).
+- Optional: Cloudflare Access in front of `/admin` and `/kitchen`. Check the free-tier seat limit.
+- Streams (kitchen feed, later): send a comment line every 25 seconds so Cloudflare's idle timeout does not close the connection.
+
+## 7. First deploy checks
+
+1. `select version()` on the Railway database reports PostgreSQL 18, and note the image tag (the docs list 18 but give no tag).
+2. **PgBouncer.** Run the request-context test shape against the pooled URL: two users alternating through the pool must never see each other's rows (`tests/rls-context.test.ts` does this against a pool of one connection). Transaction mode is expected to be safe because the identity is set with `set_config(..., true)`. This has never been run through a real pooler. **verify**
+3. Confirm backups and PITR are on, and run section 4.
+4. Sign up through the site, confirm the profile and consent rows exist, then sign in with the first owner.
+5. Check that a request straight to the Railway URL (no Cloudflare) returns 403.
