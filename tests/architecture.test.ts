@@ -51,3 +51,11 @@ describe("architecture rules", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("dependency hygiene", () => {
+  test("dev-only tooling is not a production dependency", () => {
+    const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as { dependencies: Record<string, string> };
+    const devOnly = ["embedded-postgres", "tsx", "drizzle-kit", "vitest", "dotenv", "typescript", "eslint", "@types/pg"];
+    expect(devOnly.filter((d) => d in pkg.dependencies)).toEqual([]);
+  });
+});

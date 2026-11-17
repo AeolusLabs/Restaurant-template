@@ -45,11 +45,16 @@ restaurant-template/
     restaurant.ts              the only place for client-specific values
     schema.ts                  Zod schema that validates restaurant.ts at boot
   db/
-    migrations/                numbered SQL, applied in order
+    migrations/                numbered SQL, applied in order (Drizzle journal)
     seed/
-      menu.ts                  small seed menu
+      menu.ts                  small seed menu (built)
+      owner.ts                 first owner from INITIAL_OWNER_* (built)
       demo.ts                  demo_mode data (Phase 9)
+  scripts/                     db-local, db-bootstrap, migrate, seed, auth schema, matrix SQL generator (built)
   src/
+    instrumentation.ts         validates env and modules when the server starts (built)
+    proxy.ts                   origin lock and security headers (built; Next 16 name for middleware)
+    modules/                   removable features, see docs/modules.md (built)
     app/
       (customer)/              menu, cart, checkout, orders, account
       (admin)/admin/           dashboard, menu, orders, staff, customers, promos, qr, agents
@@ -83,7 +88,8 @@ restaurant-template/
     lib/
       money.ts                 integer minor-unit helpers
       sanitize.ts              toPublicUser() and other public serializers
-      scrub.ts                 response-level key stripper
+      scrub.ts                 key stripper, applied per route handler with withScrub()
+      perimeter.ts, env.ts, boot.ts, format-issues.ts
   tests/
 ```
 
@@ -407,10 +413,31 @@ Each phase ends with a stop for your approval.
 8. Accounts are required to order. There is no guest checkout.
 9. Prices include tax and service charge unless config says otherwise.
 
-**To verify in Phase 1**
-10. PostgreSQL 18 image tag on Railway, and which plans include backups and PITR.
-11. Better Auth's current API for email and password, phone OTP, roles and account deletion.
-12. Drizzle with custom SQL migrations for roles, RLS and triggers, against plain SQL migrations.
+**Resolved in Phase 1** (details in `docs/spikes.md`)
+11. Better Auth 1.7 works as designed for email and password, with UUID ids. Phone OTP and account deletion are later phases.
+12. Drizzle with custom SQL migrations works for roles, RLS, functions and triggers. Tables come from `drizzle-kit generate`, the rest from `--custom`.
+
+**Still to verify on Railway**
+10. PostgreSQL 18 image tag on Railway, and which plans include backups and PITR. PgBouncer in transaction mode with the request context.
 13. Which SSL mode works for a Railway custom domain behind the Cloudflare proxy, and whether to disable Railway's public URL.
 14. Cloudflare plan limits for custom WAF rules, rate limits and Access seats.
 15. If the client wants a `.ng` domain: Cloudflare Registrar may not sell it, so register with a NiRA-accredited registrar and point the nameservers at Cloudflare.
+
+## 20. Phase 1 implementation notes
+
+What was built differs from the Phase 0 text in these ways. Each is also recorded as a ruling in the build ledger.
+
+- **Local database.** Docker is not required. `embedded-postgres` runs a real PostgreSQL 18 for development (`pnpm db:local`, port 55432) and for tests (a throwaway cluster per run). `bootstrapRoles` refuses anything that is not real PostgreSQL 18, and the dev port guard refuses a busy port, after a port collision with another project's database (see `docs/spikes.md`).
+- **`transitionOrder()`** lives in `src/db/transition-order.ts`. The pure matrix, `canTransition` and the error classes stay in `src/domain/orders/transitions.ts` so `domain/` has no database imports. The database function `transition_order()` takes the actor from the request context, never from an argument.
+- **SECURITY DEFINER functions** (`transition_order`, `set_profile_role`, `block_profile`) run as the migrator, which `FORCE ROW LEVEL SECURITY` binds. Tables they touch have a `TO migrator` policy gated on a transaction-local flag `app.definer_ok`, set inside the function. A future data migration that edits those tables must set the same flag.
+- **Profile role and blocked state** change only through `set_profile_role()` and `block_profile()`. Column-level grants let the app role update `full_name` and `phone` only.
+- **Menu is public.** Active menu rows are readable with no identity, because visitors browse before signing in. Every other table returns nothing without a context.
+- **Auth tables** (`user`, `session`, `account`, `verification`) are readable only by the `system` role. Better Auth runs as `system`.
+- **Sign-up.** Better Auth cannot join our transaction, so `signUpCustomer()` creates the user, then the profile and consents, and removes the user if the second step fails. The public `/sign-up/email` HTTP route is refused by a `hooks.before` rule.
+- **Sensitive-field scrubbing** is `withScrub()` on route handlers, because Next.js `proxy.ts` cannot rewrite response bodies. `SENSITIVE_KEYS` also covers `token`, `accessToken`, `refreshToken` and `idToken`.
+- **No `runtime` export.** Next.js 16 with Cache Components makes Node the only runtime and forbids the export. A test enforces that none exists.
+- **Security headers.** The CSP is limited to `frame-ancestors`, `object-src`, `base-uri` and `form-action`. A `script-src` with per-request nonces comes in Phase 2 with real pages.
+- **Addresses** store `lat_micro` and `lng_micro` (degrees times one million), never floats. `legal.policyVersion` was added to config and is stored on every consent.
+- **First owner.** `db:seed` creates it from `INITIAL_OWNER_EMAIL` and `INITIAL_OWNER_PASSWORD` when no user has that email. Remove both variables after the first run.
+- **Modules and providers** are covered in `docs/modules.md`. Providers ship as interfaces with working fakes; Paystack, Chowdeck, S3 and an SMS or WhatsApp adapter are not written yet and fail at startup with a clear message if selected.
+- **Boot validation.** `src/instrumentation.ts` runs `validateBoot()`: the environment parses, the config parsed when imported, and the enabled modules resolve.

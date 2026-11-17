@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatIssues } from "../src/lib/format-issues";
 
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "expected HH:MM (24h)");
 
@@ -87,3 +88,12 @@ export const restaurantConfigSchema = z.object({
 });
 
 export type RestaurantConfig = z.infer<typeof restaurantConfigSchema>;
+
+export class ConfigError extends Error {}
+
+/** Validates the config and, when it is wrong, says which fields, so a bad edit is easy to fix. */
+export function parseRestaurantConfig(raw: unknown): RestaurantConfig {
+  const result = restaurantConfigSchema.safeParse(raw);
+  if (result.success) return result.data;
+  throw new ConfigError(`Invalid restaurant config in config/restaurant.ts:\n${formatIssues(result.error.issues)}`);
+}

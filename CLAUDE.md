@@ -6,7 +6,7 @@ Read `docs/ARCHITECTURE.md` for the design and `PRODUCT.md` for users, personali
 
 ## Stack
 
-Next.js (App Router) + TypeScript, Tailwind, Zod, Vitest, pnpm (Node 22 LTS). Railway: web service, worker service, PostgreSQL 18 with PgBouncer, S3-compatible bucket. Cloudflare in front. Better Auth, pg-boss, Drizzle (the last three are confirmed in the Phase 1 spike). Paystack for payments, Chowdeck Relay for delivery.
+Next.js (App Router) + TypeScript, Tailwind, Zod, Vitest, pnpm (Node 22 LTS). Railway: web service, worker service, PostgreSQL 18 with PgBouncer, S3-compatible bucket. Cloudflare in front. Better Auth and Drizzle (confirmed in Phase 1), pg-boss (Phase 2 onward). Paystack for payments, Chowdeck Relay for delivery.
 
 ## Hard rules
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { restaurantConfigSchema } from "../config/schema";
+import { ConfigError, parseRestaurantConfig, restaurantConfigSchema } from "../config/schema";
 import { restaurantConfig } from "../config/restaurant";
 
 const base = () => structuredClone(restaurantConfig);
@@ -47,5 +47,21 @@ describe("restaurant config", () => {
     const c = base() as unknown as { features: Record<string, unknown> };
     c.features.promos = "yes";
     expect(restaurantConfigSchema.safeParse(c).success).toBe(false);
+  });
+});
+
+describe("parseRestaurantConfig", () => {
+  test("an invalid config stops boot with a message that names each bad field", () => {
+    const c = base();
+    c.charges.taxBps = 20_000;
+    c.currency.exponent = 9;
+    expect(() => parseRestaurantConfig(c)).toThrow(ConfigError);
+    expect(() => parseRestaurantConfig(c)).toThrow(/charges\.taxBps/);
+    expect(() => parseRestaurantConfig(c)).toThrow(/currency\.exponent/);
+    expect(() => parseRestaurantConfig(c)).toThrow(/config\/restaurant\.ts/);
+  });
+
+  test("a valid config is returned as is", () => {
+    expect(parseRestaurantConfig(base())).toEqual(restaurantConfig);
   });
 });

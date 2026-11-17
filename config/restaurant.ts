@@ -1,4 +1,4 @@
-import { restaurantConfigSchema, type RestaurantConfig } from "./schema";
+import { parseRestaurantConfig, type RestaurantConfig } from "./schema";
 
 // The only place for client-specific values. Replace these per restaurant.
 const raw: RestaurantConfig = {
@@ -28,4 +28,4 @@ const raw: RestaurantConfig = {
   agents: { defaultMonthlyCapMinor: 0, modelPrices: {} },
 };
 
-export const restaurantConfig: RestaurantConfig = restaurantConfigSchema.parse(raw);
+export const restaurantConfig: RestaurantConfig = parseRestaurantConfig(raw);

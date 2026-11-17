@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatIssues } from "./format-issues";
 
 const pg = z.string().min(1);
 
@@ -56,6 +57,5 @@ export class EnvError extends Error {}
 export function loadEnv(source: Record<string, string | undefined> = process.env): Env {
   const result = schema.safeParse(source);
   if (result.success) return result.data;
-  const lines = result.error.issues.map((i) => `  ${i.path.join(".") || "(env)"}: ${i.message}`);
-  throw new EnvError(`Invalid environment:\n${lines.join("\n")}`);
+  throw new EnvError(`Invalid environment:\n${formatIssues(result.error.issues)}`);
 }
