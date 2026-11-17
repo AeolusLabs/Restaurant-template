@@ -9,6 +9,22 @@ async function run(c: Client, template: string, ...args: string[]) {
   await c.query(rows[0].q);
 }
 
+/**
+ * Bootstrap changes roles, ownership and privileges, so it only runs against a real PostgreSQL 18.
+ * It refuses emulators such as PGlite, where every connection is a superuser and a database name
+ * can map onto someone else's data.
+ */
+export async function assertRealPostgres(client: Pick<Client, "query">): Promise<void> {
+  const { rows } = await client.query<{ version: string }>("select version()");
+  const version = rows[0].version;
+  if (/pglite/i.test(version)) {
+    throw new Error(`Refusing to bootstrap: the server is PGlite (${version}), not a real PostgreSQL.`);
+  }
+  if (!/^PostgreSQL 18/.test(version)) {
+    throw new Error(`Refusing to bootstrap: expected PostgreSQL 18, got "${version}".`);
+  }
+}
+
 function withDatabase(url: string, db: string): string {
   const u = new URL(url);
   u.pathname = `/${db}`;
@@ -27,6 +43,7 @@ export async function bootstrapRoles(
   const admin = new Client({ connectionString: adminUrl });
   await admin.connect();
   try {
+    await assertRealPostgres(admin);
     for (const [role, password] of Object.entries(passwords)) {
       const { rowCount } = await admin.query("select 1 from pg_roles where rolname = $1", [role]);
       const verb = rowCount ? "alter role %I" : "create role %I";

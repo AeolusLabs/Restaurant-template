@@ -2,11 +2,11 @@ import "dotenv/config";
 import path from "node:path";
 import { startCluster } from "./lib/cluster";
 
-// Long-running development database on port 54329. Stop with Ctrl+C.
-const url = new URL(process.env.DATABASE_ADMIN_URL ?? "postgres://postgres:postgres@127.0.0.1:54329/postgres");
+// Long-running development database on port 55432. Stop with Ctrl+C.
+const url = new URL(process.env.DATABASE_ADMIN_URL ?? "postgres://postgres:postgres@127.0.0.1:55432/postgres");
 const cluster = await startCluster({
   dataDir: path.resolve(process.cwd(), ".pgdata"),
-  port: Number(url.port || 54329),
+  port: Number(url.port || 55432),
   password: decodeURIComponent(url.password || "postgres"),
   persistent: true,
 });

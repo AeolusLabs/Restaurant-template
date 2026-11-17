@@ -16,6 +16,24 @@ export function freePort(): Promise<number> {
   });
 }
 
+/**
+ * Throws if anything already listens on the port, on IPv4 or IPv6 loopback.
+ * Postgres can bind one family while another process owns the other, and connections to the
+ * busy address would then silently reach that other process.
+ */
+export async function assertPortFree(port: number): Promise<void> {
+  for (const host of ["127.0.0.1", "::1"]) {
+    await new Promise<void>((resolve, reject) => {
+      const srv = net.createServer();
+      srv.once("error", (err: NodeJS.ErrnoException) => {
+        if (err.code === "EADDRINUSE") reject(new Error(`Port ${port} is already in use on ${host}. Pick another port.`));
+        else resolve(); // that address family is not available here
+      });
+      srv.listen(port, host, () => srv.close(() => resolve()));
+    });
+  }
+}
+
 /** Starts a real PostgreSQL 18 cluster from the embedded-postgres binaries. No Docker needed. */
 export async function startCluster(o: {
   dataDir: string;
@@ -23,6 +41,7 @@ export async function startCluster(o: {
   password: string;
   persistent: boolean;
 }): Promise<Cluster> {
+  await assertPortFree(o.port);
   const pg = new EmbeddedPostgres({
     databaseDir: o.dataDir,
     user: "postgres",

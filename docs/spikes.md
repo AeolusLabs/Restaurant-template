@@ -57,3 +57,9 @@ Version 1.7.25. Docs read: better-auth.com/docs (v1.7 index).
 
 **Not verified**
 - Session cookie behaviour through the Cloudflare proxy (needs a deployment).
+
+## Incident: dev database port collision (found during Task 7, 2026-11-17)
+
+`pnpm db:local` reported success on port 54329 while another project's PGlite server already held `127.0.0.1:54329`. The embedded Postgres had bound only `[::1]`, so `pnpm setup` (using `127.0.0.1`) ran against the other server and changed roles, schema ownership and privileges there. It was caught when the Task 7 migration hit tables that were not ours.
+
+Fixes in this repo: the dev port is now 55432, `startCluster` refuses a port in use on IPv4 or IPv6 loopback, and `bootstrapRoles` refuses to run unless the server is real PostgreSQL 18 (never PGlite). Both are covered by `tests/cluster-safety.test.ts`.

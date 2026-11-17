@@ -112,7 +112,7 @@
 
 **Interfaces:**
 - Produces:
-  - `pnpm db:local` starts a development cluster on port 54329 (data in `.pgdata/`).
+  - `pnpm db:local` starts a development cluster on port 55432 (data in `.pgdata/`).
   - `bootstrapRoles(adminUrl: string, passwords: { migrator: string; app: string; system: string }): Promise<void>` in `scripts/db-bootstrap.ts` (creates the three login roles if missing, creates the database objects they need, grants `CONNECT`; idempotent).
   - `runMigrations(migratorUrl: string): Promise<{ applied: number }>` in `scripts/migrate.ts` (Drizzle migrator over `db/migrations`).
   - `startTestDb(): Promise<{ urls: { admin: string; migrator: string; app: string; system: string }; stop(): Promise<void> }>` in `tests/helpers/db.ts`, started once by `globalSetup` on its own port and temp directory, exposed to tests through Vitest's `provide`/`inject`.
