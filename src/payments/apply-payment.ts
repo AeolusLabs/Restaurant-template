@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Tx } from "@/db/context";
 import { auditLog, orders, payments } from "@/db/schema";
+import { raiseAlert } from "@/db/alerts";
 import { transitionOrderIn } from "@/db/transition-order";
 import type { PaymentProvider } from "@/providers/payment/types";
 
@@ -55,6 +56,12 @@ export async function settlePayment(tx: Tx, reference: string, provider: Payment
       providerMinor: verification.amountMinor,
       providerCurrency: verification.currency,
     });
+    await raiseAlert(tx, {
+      kind: "payment_mismatch",
+      severity: "critical",
+      orderId: order.id,
+      payload: { reference, expectedMinor: order.totalMinor, providerMinor: verification.amountMinor, providerCurrency: verification.currency },
+    });
     return "mismatch";
   }
 
@@ -68,6 +75,12 @@ export async function settlePayment(tx: Tx, reference: string, provider: Payment
     orderId: order.id,
     orderStatus: order.status,
     amountMinor: payment.amountMinor,
+  });
+  await raiseAlert(tx, {
+    kind: late ? "payment_late" : "payment_duplicate",
+    severity: late ? "critical" : "warning",
+    orderId: order.id,
+    payload: { reference, amountMinor: payment.amountMinor, orderStatus: order.status },
   });
   return late ? "late" : "duplicate_payment";
 }
