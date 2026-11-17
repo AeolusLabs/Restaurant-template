@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
+/*
+ * Neutral by default, branded by config. The brand colours (--brand, --accent) are set on <html> from
+ * config/restaurant.ts; everything else is a tinted neutral so a new restaurant changes settings, not
+ * components. Light theme only: customers order from phones in mixed light (see the Phase 2 plan, ruling 8).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --brand: oklch(48% 0.14 40);
+  --accent: oklch(70% 0.15 150);
+
+  --bg: oklch(98.4% 0.005 60);
+  --surface: oklch(99.6% 0.003 60);
+  --ink: oklch(22% 0.012 60);
+  --muted: oklch(46% 0.012 60);
+  --line: oklch(89% 0.008 60);
+  --line-strong: oklch(72% 0.01 60);
+  --brand-soft: color-mix(in oklch, var(--brand) 9%, var(--bg));
+  --on-brand: oklch(99.6% 0.003 60);
+
+  --ok: oklch(44% 0.11 155);
+  --ok-soft: oklch(95% 0.04 155);
+  --warn: oklch(46% 0.1 70);
+  --warn-soft: oklch(95% 0.05 85);
+  --bad: oklch(47% 0.17 25);
+  --bad-soft: oklch(95% 0.03 25);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Type scale, each step at least 1.25 times the last. */
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: 1.9531rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  line-height: 1.55;
+  overflow-wrap: break-word;
+}
+
+/* Visible keyboard focus everywhere, in the brand colour with a light ring so it shows on any ground. */
+:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--bg);
+}
+
+/* Form controls: 16px text stops iOS zooming on focus, 44px height meets the touch target size. */
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: max(1rem, 16px);
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

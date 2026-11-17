@@ -13,7 +13,7 @@ import { loadPricingItems } from "./menu";
 import { orderContacts, orderItems, orders, profiles } from "./schema";
 import { transitionOrder } from "./transition-order";
 
-export type RejectionCode = "not_a_customer" | "pickup_disabled" | "invalid_slot" | "cart_problems" | "profile_missing";
+export type RejectionCode = "not_a_customer" | "pickup_disabled" | "invalid_slot" | "cart_problems" | "price_changed" | "profile_missing";
 
 /** The order cannot be placed as asked. `problems` names the cart lines at fault, for cart_problems. */
 export class OrderRejectedError extends Error {
@@ -74,6 +74,10 @@ export async function createPickupOrder(
       const items = await loadPricingItems(tx, [...new Set(input.lines.map((l) => l.itemId))]);
       const priced = priceCart(input.lines, items, cfg.charges);
       if (!priced.ok) throw new OrderRejectedError("cart_problems", "Some items in your cart cannot be ordered", priced.problems);
+
+      if (input.expectedTotalMinor !== undefined && input.expectedTotalMinor !== priced.totalMinor) {
+        throw new OrderRejectedError("price_changed", "The prices changed while you were checking out. Please review your order");
+      }
 
       let order: OrderRow | undefined;
       for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS && !order; attempt++) {

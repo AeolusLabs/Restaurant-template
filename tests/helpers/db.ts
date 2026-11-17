@@ -28,8 +28,14 @@ export async function startTestDb(): Promise<TestDb> {
   return {
     urls,
     async stop() {
-      await cluster.stop();
-      await rm(dataDir, { recursive: true, force: true }).catch(() => {});
+      try {
+        await cluster.stop();
+      } catch (err) {
+        // On Windows the data directory can still be locked for a moment when embedded-postgres tries to
+        // delete it. The server has stopped by then; the directory is removed below, with retries.
+        if ((err as NodeJS.ErrnoException).code !== "EBUSY") throw err;
+      }
+      await rm(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => {});
     },
   };
 }

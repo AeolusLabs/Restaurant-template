@@ -181,6 +181,14 @@ describe("createPickupOrder", () => {
     await expect(createPickupOrder(manager, input(), deps())).rejects.toMatchObject({ code: "not_a_customer" });
   });
 
+  test("refuses, and creates nothing, when the total the customer saw is no longer the total", async () => {
+    const ctx = await customer();
+    await expect(createPickupOrder(ctx, input({ expectedTotalMinor: 1_000_000 }), deps())).rejects.toMatchObject({ code: "price_changed" });
+    expect((await admin().query(`select 1 from orders where profile_id = $1`, [ctx.userId])).rowCount).toBe(0);
+    const ok = await createPickupOrder(ctx, input({ expectedTotalMinor: 1_241_625 }), deps());
+    expect(ok.order.totalMinor).toBe(1_241_625);
+  });
+
   test("a second submit with the same token returns the same order and creates nothing new", async () => {
     const ctx = await customer();
     const first = await createPickupOrder(ctx, input({ checkoutToken: `${tag}-same` }), deps());

@@ -23,6 +23,8 @@ export const createOrderSchema = z.object({
     .max(200, "Keep notes to 200 characters")
     .optional()
     .transform((v) => v || undefined),
+  /** The total the customer was shown. If the real total differs now, the order is refused, not placed. */
+  expectedTotalMinor: z.number().int().nonnegative().optional(),
   /** One per checkout screen load. A second submit with the same token returns the same order. */
   checkoutToken: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
 });
