@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { restaurantConfig as c } from "../../../../config/restaurant";
+import { restaurantConfig as c } from "../../../../../config/restaurant";
 import { LegalPage, contactLine } from "@/components/legal-page";
 
 export const metadata: Metadata = { title: "Terms of use" };

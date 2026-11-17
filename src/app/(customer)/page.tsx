@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { restaurantConfig as c } from "../../config/restaurant";
+import { restaurantConfig as c } from "../../../config/restaurant";
 import { CartBar } from "@/components/cart/cart-link";
 import { QuickAdd } from "@/components/cart/quick-add";
 import { button } from "@/components/ui";

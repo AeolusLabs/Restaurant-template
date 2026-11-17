@@ -1,6 +1,6 @@
 "use server";
 
-import { restaurantConfig } from "../../../config/restaurant";
+import { restaurantConfig } from "../../../../config/restaurant";
 import { withPublicContext } from "@/db/context";
 import { loadPricingItems } from "@/db/menu";
 import { cartSchema } from "@/domain/checkout/cart";

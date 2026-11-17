@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { quoteCartAction, type Quote } from "@/app/cart/actions";
+import { quoteCartAction, type Quote } from "@/app/(customer)/cart/actions";
 import type { StoredLine } from "./store";
 
 type State = { quote: Quote | null; loading: boolean; failed: boolean };

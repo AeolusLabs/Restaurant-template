@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { restaurantConfig as c } from "../../../../config/restaurant";
+import { restaurantConfig as c } from "../../../../../config/restaurant";
 import { requireCustomer } from "@/auth/customer";
 import { button, card } from "@/components/ui";
 

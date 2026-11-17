@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { deleteAccountAction, updateProfileAction } from "@/app/account/actions";
+import { deleteAccountAction, updateProfileAction } from "@/app/(customer)/account/actions";
 import { button, field, label } from "@/components/ui";
 
 function Submit({ children, variant = "primary" }: { children: string; variant?: "primary" | "danger" }) {

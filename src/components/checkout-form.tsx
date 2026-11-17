@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { placeOrderAction } from "@/app/checkout/actions";
+import { placeOrderAction } from "@/app/(customer)/checkout/actions";
 import { useMoney } from "@/components/money-context";
 import { problemText } from "@/components/cart/problems";
 import { useCart } from "@/components/cart/store";

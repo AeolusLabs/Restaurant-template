@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { restaurantConfig } from "../../config/restaurant";
-import { Footer } from "@/components/footer";
-import { Header } from "@/components/header";
 import { MoneyProvider } from "@/components/money-context";
 import { moneyFormat } from "@/lib/format";
 import "./globals.css";
@@ -14,6 +12,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: restaurantConfig.colors.primary };
 
+/**
+ * The frame shared by every area: tokens, branding from config, the skip link and the money format.
+ * Each area (customer, admin, kitchen) adds its own header and <main id="main"> in its own layout.
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   // Branding arrives here from config, as CSS variables. No component hard-codes a colour.
   const brand = { "--brand": restaurantConfig.colors.primary, "--accent": restaurantConfig.colors.accent } as CSSProperties;
@@ -27,11 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             Skip to content
           </a>
-          <Header />
-          <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 sm:pb-12">
-            {children}
-          </main>
-          <Footer />
+          {children}
         </MoneyProvider>
       </body>
     </html>

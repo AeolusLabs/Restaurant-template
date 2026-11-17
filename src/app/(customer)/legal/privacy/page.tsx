@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { restaurantConfig as c } from "../../../../config/restaurant";
+import { restaurantConfig as c } from "../../../../../config/restaurant";
 import { LegalPage, contactLine } from "@/components/legal-page";
 
 export const metadata: Metadata = { title: "Privacy policy" };

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { withSystemContext } from "@/db/context";
 import { echo, fieldErrors, text, type FormState } from "@/lib/form";
 import { HUMAN_CHECK_FAILED, passesHumanCheck } from "@/lib/human-check";
+import { postSignInPath } from "@/domain/staff-gate";
+import type { AppRole } from "@/domain/roles";
 import { safeNext } from "@/lib/safe-redirect";
 import { getAuth } from "./auth";
 import { ConsentRequiredError, signUpCustomer } from "./signup";
@@ -28,7 +30,7 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
 
   // Say plainly when an account has been blocked, instead of a password error that never goes away.
   const { rows } = await withSystemContext((tx) =>
-    tx.execute(sql`select p.blocked_at, p.deleted_at from "user" u join profiles p on p.id = u.id where u.email = ${email.toLowerCase()}`),
+    tx.execute(sql`select p.role, p.blocked_at, p.deleted_at from "user" u join profiles p on p.id = u.id where u.email = ${email.toLowerCase()}`),
   );
   if (rows[0]?.blocked_at || rows[0]?.deleted_at) {
     return { error: "This account cannot sign in. Please contact the restaurant.", values };
@@ -40,7 +42,8 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
     if (err instanceof APIError) return { error: "The email or password is not right.", values };
     throw err;
   }
-  redirect(safeNext(text(formData, "next")));
+  // Staff with no particular destination land on their own screens.
+  redirect(postSignInPath((rows[0]?.role as AppRole | undefined) ?? "customer", safeNext(text(formData, "next"))));
 }
 
 export async function signUpAction(_prev: FormState, formData: FormData): Promise<FormState> {

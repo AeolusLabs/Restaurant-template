@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
-import { restaurantConfig as c } from "../../../config/restaurant";
+import { restaurantConfig as c } from "../../../../config/restaurant";
 import { requireCustomer } from "@/auth/customer";
 import { CheckoutForm } from "@/components/checkout-form";
 import { withRequestContext } from "@/db/context";
