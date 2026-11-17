@@ -23,6 +23,8 @@ const schema = z
     CHOWDECK_WEBHOOK_SECRET: z.string().optional(),
 
     NOTIFICATION_PROVIDER: z.enum(["stub"]).default("stub"),
+    // Add an adapter name here and in src/providers/index.ts to send real email (docs/modules.md).
+    EMAIL_PROVIDER: z.enum(["mock"]).default("mock"),
     LLM_PROVIDER: z.enum(["mock"]).default("mock"),
 
     STORAGE_PROVIDER: z.enum(["memory", "s3"]).default("memory"),

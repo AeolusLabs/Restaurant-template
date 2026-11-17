@@ -4,13 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { quoteCartAction, type Quote } from "@/app/cart/actions";
 import type { StoredLine } from "./store";
 
-/** Asks the server to price the cart whenever it changes. Only the latest answer is kept. */
-export function useQuote(lines: StoredLine[]): { quote: Quote | null; loading: boolean; failed: boolean } {
-  const [state, setState] = useState<{ quote: Quote | null; loading: boolean; failed: boolean }>({ quote: null, loading: true, failed: false });
+type State = { quote: Quote | null; loading: boolean; failed: boolean };
+const IDLE: State = { quote: null, loading: false, failed: false };
+
+/** Asks the server to price the cart whenever it changes. Only the latest answer is kept. An empty cart is not sent. */
+export function useQuote(lines: StoredLine[]): State {
+  const [state, setState] = useState<State>({ quote: null, loading: true, failed: false });
   const latest = useRef(0);
   const signature = JSON.stringify(lines);
+  const empty = lines.length === 0;
 
   useEffect(() => {
+    if (empty) return;
     const id = ++latest.current;
     let cancelled = false;
     quoteCartAction(JSON.parse(signature))
@@ -23,7 +28,7 @@ export function useQuote(lines: StoredLine[]): { quote: Quote | null; loading: b
     return () => {
       cancelled = true;
     };
-  }, [signature]);
+  }, [signature, empty]);
 
-  return state;
+  return empty ? IDLE : state;
 }

@@ -4,6 +4,8 @@ import type { z } from "zod";
 export type FormState =
   | {
       error?: string;
+      /** A confirmation to show in place of the form's usual error (for example, that an email was sent). */
+      message?: string;
       fieldErrors?: Record<string, string>;
       /** What the person typed (never a password), so the form can show it again instead of coming back empty. */
       values?: Record<string, string>;

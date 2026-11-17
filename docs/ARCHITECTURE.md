@@ -243,6 +243,10 @@ interface DeliveryProvider {
 }
 // DeliveryStatus: pending | awaiting_pickup | in_transit | delivered | cancelled | failed | unknown
 
+interface EmailProvider {
+  send(i: { to: string; subject: string; text: string }): Promise<void>;
+}
+
 interface NotificationProvider {
   send(i: { channel: 'sms'|'whatsapp'; to: string; template: string; vars: Record<string, string> }): Promise<void>;
 }
@@ -456,3 +460,4 @@ What the customer side added, and where it differs from the text above. Rulings 
 - **Cache Components**: every screen that reads the session or the database sits behind `<Suspense>`, and time-dependent screens call `connection()` first.
 - **Branding**: `config.colors.primary` must be written as `oklch()` and dark enough for white text (contrast at least 4.5:1); the config check refuses anything else.
 - **Turnstile**: `verifyTurnstile()` runs in the sign-up, sign-in and checkout actions when `TURNSTILE_SECRET_KEY` is set.
+- **Password reset** (added after Phase 2): `EmailProvider` with a logging fake, Better Auth's reset flow with a one-hour single-use link that signs the account out everywhere, and `/forgot-password` and `/reset-password`. The answer to a reset request is identical whether or not the address has an account.

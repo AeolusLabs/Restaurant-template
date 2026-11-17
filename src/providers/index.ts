@@ -1,6 +1,7 @@
 import { restaurantConfig } from "../../config/restaurant";
 import { loadEnv } from "@/lib/env";
 import { MockDeliveryProvider } from "./delivery/mock";
+import { MockEmailProvider } from "./email/mock";
 import { MockLLMProvider } from "./llm/mock";
 import { StubNotificationProvider } from "./notification/stub";
 import { MockPaymentProvider } from "./payment/mock";
@@ -15,6 +16,7 @@ registerProvider("payment", "mock", () => new MockPaymentProvider(restaurantConf
 registerProvider("payment", "paystack", (env) => new PaystackProvider({ secretKey: env.PAYSTACK_SECRET_KEY!, currency: restaurantConfig.currency.code }));
 registerProvider("delivery", "mock", () => new MockDeliveryProvider());
 registerProvider("notification", "stub", () => new StubNotificationProvider());
+registerProvider("email", "mock", () => new MockEmailProvider());
 registerProvider("llm", "mock", () => new MockLLMProvider());
 registerProvider("storage", "memory", () => new MemoryStorageProvider());
 

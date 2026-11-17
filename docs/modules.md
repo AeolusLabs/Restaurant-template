@@ -31,13 +31,14 @@ Misconfiguration (duplicate id, unknown dependency, a cycle, an enabled module t
 
 ## Providers (outside services)
 
-A provider is an adapter for one outside service behind an interface: payments, delivery, notifications, a language model, file storage. Business logic only ever sees the interface in `src/providers/<kind>/types.ts`. Every kind has a working fake that runs with no keys and no network, so the whole app runs locally with nothing connected.
+A provider is an adapter for one outside service behind an interface: payments, delivery, notifications, email, a language model, file storage. Business logic only ever sees the interface in `src/providers/<kind>/types.ts`. Every kind has a working fake that runs with no keys and no network, so the whole app runs locally with nothing connected.
 
 | Kind | Interface | Local fake | Selector in `.env` |
 |---|---|---|---|
 | payment | `PaymentProvider` | `MockPaymentProvider` | `PAYMENT_PROVIDER` |
 | delivery | `DeliveryProvider` | `MockDeliveryProvider` | `DELIVERY_PROVIDER` |
 | notification | `NotificationProvider` | `StubNotificationProvider` | `NOTIFICATION_PROVIDER` |
+| email | `EmailProvider` | `MockEmailProvider` | `EMAIL_PROVIDER` |
 | llm | `LLMProvider` | `MockLLMProvider` | `LLM_PROVIDER` |
 | storage | `StorageProvider` | `MemoryStorageProvider` | `STORAGE_PROVIDER` |
 
@@ -47,6 +48,8 @@ A provider is an adapter for one outside service behind an interface: payments, 
 3. Set `PAYMENT_PROVIDER=paystack` and the vendor's keys in `.env`. Env validation already requires the keys when a real provider is selected.
 
 Until step 1 and 2 are done, selecting a real vendor fails at startup with `ProviderNotInstalledError`, naming the file to create. Nothing silently falls back to the fake.
+
+**Email.** The fake prints each message to the server log (so a developer can copy a password reset link) and sends nothing. To send real email, add an adapter for your provider (SMTP, Resend, Postmark) as `src/providers/email/<name>.ts`, add its name to the `EMAIL_PROVIDER` list in `src/lib/env.ts`, register it, and set the variable. Until then password reset emails are never delivered.
 
 **Remove a service:** delete its adapter file and its `registerProvider` line, and set the selector back to the fake.
 

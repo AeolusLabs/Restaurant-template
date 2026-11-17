@@ -35,11 +35,12 @@ export async function setMarketingAction(formData: FormData): Promise<void> {
 
 export async function deleteAccountAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const { ctx } = await customer();
-  if (text(formData, "confirm") !== "on") return { fieldErrors: { confirm: "Tick the box to confirm" } };
+  const values = echo(formData, ["confirm"]);
+  if (values.confirm !== "on") return { fieldErrors: { confirm: "Tick the box to confirm" }, values };
   try {
     await deleteCustomerAccount(ctx);
   } catch (err) {
-    if (err instanceof ActiveOrderError) return { error: err.message };
+    if (err instanceof ActiveOrderError) return { error: err.message, values };
     throw err;
   }
   redirect("/?account=deleted");

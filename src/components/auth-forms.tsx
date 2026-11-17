@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { signInAction, signUpAction } from "@/auth/actions";
+import { requestResetAction, resetPasswordAction, signInAction, signUpAction } from "@/auth/actions";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { button, field, label } from "@/components/ui";
 
@@ -24,13 +24,19 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   ) : null;
 }
 
-export function SignInForm({ next }: { next: string }) {
+export function SignInForm({ next, notice }: { next: string; notice?: string }) {
   const [state, action] = useActionState(signInAction, undefined);
   const fe = state?.fieldErrors ?? {};
   const v = state?.values ?? {};
   return (
     <form action={action} className="space-y-5" noValidate>
       <input type="hidden" name="next" value={next} />
+      {notice && (
+        <p className="rounded-lg bg-ok-soft p-3 font-semibold text-ok" role="status">
+          <span aria-hidden="true">&#10003; </span>
+          {notice}
+        </p>
+      )}
       <div>
         <label htmlFor="email" className={label}>
           Email
@@ -44,6 +50,11 @@ export function SignInForm({ next }: { next: string }) {
         </label>
         <input id="password" name="password" type="password" autoComplete="current-password" className={field} required aria-invalid={!!fe.password} aria-describedby={fe.password ? "password-error" : undefined} />
         <FieldError id="password-error" message={fe.password} />
+        <p className="mt-2">
+          <Link href="/forgot-password" className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4">
+            Forgot your password?
+          </Link>
+        </p>
       </div>
       {state?.error && (
         <p className="rounded-lg bg-bad-soft p-3 text-bad" role="alert">
@@ -139,6 +150,80 @@ export function SignUpForm({ next }: { next: string }) {
           Sign in
         </Link>
       </p>
+    </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  const [state, action] = useActionState(requestResetAction, undefined);
+  const fe = state?.fieldErrors ?? {};
+  if (state?.message) {
+    return (
+      <div className="space-y-4" role="status">
+        <p className="rounded-lg bg-ok-soft p-4 text-ink">{state.message}</p>
+        <Link href="/sign-in" className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4">
+          Back to sign in
+        </Link>
+      </div>
+    );
+  }
+  return (
+    <form action={action} className="space-y-5" noValidate>
+      <div>
+        <label htmlFor="email" className={label}>
+          Email
+        </label>
+        <input id="email" name="email" type="email" autoComplete="email" inputMode="email" defaultValue={state?.values?.email} key={`e${state?.values?.email}`} className={field} required aria-invalid={!!fe.email} aria-describedby={fe.email ? "email-error" : undefined} />
+        <FieldError id="email-error" message={fe.email} />
+      </div>
+      {state?.error && (
+        <p className="rounded-lg bg-bad-soft p-3 text-bad" role="alert">
+          {state.error}
+        </p>
+      )}
+      <TurnstileWidget />
+      <Submit pending="Sending\u2026">Send reset link</Submit>
+      <p className="text-center">
+        <Link href="/sign-in" className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4">
+          Back to sign in
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function ResetPasswordForm({ token }: { token: string }) {
+  const [state, action] = useActionState(resetPasswordAction, undefined);
+  const fe = state?.fieldErrors ?? {};
+  return (
+    <form action={action} className="space-y-5" noValidate>
+      <input type="hidden" name="token" value={token} />
+      <div>
+        <label htmlFor="password" className={label}>
+          New password
+        </label>
+        <input id="password" name="password" type="password" autoComplete="new-password" className={field} required minLength={8} aria-invalid={!!fe.password} aria-describedby={`password-help${fe.password ? " password-error" : ""}`} />
+        <p id="password-help" className="mt-1 text-sm text-muted">
+          At least 8 characters.
+        </p>
+        <FieldError id="password-error" message={fe.password} />
+      </div>
+      <div>
+        <label htmlFor="confirm" className={label}>
+          Type it again
+        </label>
+        <input id="confirm" name="confirm" type="password" autoComplete="new-password" className={field} required aria-invalid={!!fe.confirm} aria-describedby={fe.confirm ? "confirm-error" : undefined} />
+        <FieldError id="confirm-error" message={fe.confirm} />
+      </div>
+      {state?.error && (
+        <p className="rounded-lg bg-bad-soft p-3 text-bad" role="alert">
+          {state.error}{" "}
+          <Link href="/forgot-password" className="font-semibold underline underline-offset-4">
+            Get a new link
+          </Link>
+        </p>
+      )}
+      <Submit pending="Saving\u2026">Save new password</Submit>
     </form>
   );
 }

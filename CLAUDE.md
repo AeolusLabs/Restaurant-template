@@ -12,7 +12,7 @@ Next.js (App Router) + TypeScript, Tailwind, Zod, Vitest, pnpm (Node 22 LTS). Ra
 
 1. **Nothing client-specific in code.** Branding and business config (name, logo, colors, currency, timezone, address, opening hours, delivery zones, tax and service charge, feature flags) live in `config/restaurant.ts`. Secrets live only in `.env`; keep `.env.example` current.
 2. **Data lives in the database.** Menu, promos, customers and orders are database rows. Ship a small seed menu so the app runs on first boot.
-3. **Vendors sit behind interfaces.** `PaymentProvider` (Paystack), `DeliveryProvider` (Chowdeck), `NotificationProvider` (SMS and WhatsApp, stubbed), `LLMProvider`, `StorageProvider`. Business logic never imports a vendor SDK. Every interface has a mock for development and tests.
+3. **Vendors sit behind interfaces.** `PaymentProvider` (Paystack), `DeliveryProvider` (Chowdeck), `NotificationProvider` (SMS and WhatsApp, stubbed), `EmailProvider` (password reset), `LLMProvider`, `StorageProvider`. Business logic never imports a vendor SDK. Every interface has a mock for development and tests.
 4. **Money is an integer in the minor unit** (kobo), column names end in `_minor`. Never floats, never decimal strings in the domain. Use `lib/money.ts`.
 5. **One order state machine.** placed, paid, accepted, preparing, ready, then out_for_delivery or picked_up, then completed, plus cancelled, refunded and delivery_failed. Only `transitionOrder()` changes `orders.status`. Every transition is logged to `order_events`, and a database trigger rejects illegal ones.
 6. **Webhooks verify signatures and are idempotent.** Read the raw body, verify with a constant-time comparison, insert into `webhook_events` under the unique constraint, and process only a new event.

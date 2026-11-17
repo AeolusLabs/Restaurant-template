@@ -1,5 +1,6 @@
 import type { Env } from "@/lib/env";
 import type { DeliveryProvider } from "./delivery/types";
+import type { EmailProvider } from "./email/types";
 import type { LLMProvider } from "./llm/types";
 import type { NotificationProvider } from "./notification/types";
 import type { PaymentProvider } from "./payment/types";
@@ -9,6 +10,7 @@ export type Providers = {
   payment: PaymentProvider;
   delivery: DeliveryProvider;
   notification: NotificationProvider;
+  email: EmailProvider;
   llm: LLMProvider;
   storage: StorageProvider;
 };
@@ -21,6 +23,7 @@ const SELECTORS = {
   payment: "PAYMENT_PROVIDER",
   delivery: "DELIVERY_PROVIDER",
   notification: "NOTIFICATION_PROVIDER",
+  email: "EMAIL_PROVIDER",
   llm: "LLM_PROVIDER",
   storage: "STORAGE_PROVIDER",
 } as const satisfies Record<ProviderKey, keyof Env>;
@@ -29,6 +32,7 @@ const factories: { [K in ProviderKey]: Map<string, Factory<K>> } = {
   payment: new Map(),
   delivery: new Map(),
   notification: new Map(),
+  email: new Map(),
   llm: new Map(),
   storage: new Map(),
 };
@@ -56,6 +60,7 @@ export function getProviders(env: Env): Providers {
     payment: build("payment", env),
     delivery: build("delivery", env),
     notification: build("notification", env),
+    email: build("email", env),
     llm: build("llm", env),
     storage: build("storage", env),
   };

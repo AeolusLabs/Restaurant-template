@@ -72,3 +72,44 @@ export async function signOutAction(): Promise<void> {
   await getAuth().api.signOut({ headers: await headers() });
   redirect("/");
 }
+
+const emailSchema = z.object({ email: z.email("Enter a valid email") });
+const resetSchema = z
+  .object({
+    token: z.string().min(1),
+    password: z.string().min(8, "Use at least 8 characters").max(128),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "The two passwords are not the same" });
+
+/**
+ * Sends a password reset link. The answer is the same whether or not the address has an account, so this
+ * cannot be used to find out who is a customer.
+ */
+export async function requestResetAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const values = echo(formData, ["email"]);
+  const parsed = emailSchema.safeParse({ email: text(formData, "email") });
+  if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
+  if (!(await passesHumanCheck(formData))) return { error: HUMAN_CHECK_FAILED, values };
+
+  try {
+    await getAuth().api.requestPasswordReset({ body: { email: parsed.data.email, redirectTo: "/reset-password" } });
+  } catch (err) {
+    // Not shown to the visitor: a different answer for "could not send" would also reveal the account exists.
+    console.error("password reset request failed:", err instanceof Error ? err.message : err);
+  }
+  return { message: "If an account uses that email address, we have sent a link to choose a new password. It works once and expires in 1 hour.", values };
+}
+
+export async function resetPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const parsed = resetSchema.safeParse({ token: text(formData, "token"), password: text(formData, "password"), confirm: text(formData, "confirm") });
+  if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
+
+  try {
+    await getAuth().api.resetPassword({ body: { newPassword: parsed.data.password, token: parsed.data.token } });
+  } catch (err) {
+    if (err instanceof APIError) return { error: "This link has expired or has already been used. Ask for a new one." };
+    throw err;
+  }
+  redirect("/sign-in?reset=1");
+}

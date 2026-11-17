@@ -24,7 +24,7 @@ The plan's eleven rulings stand (tax order, slot rules, the expiry job verifying
 
 ## Known gaps and decisions for you
 
-- **No password reset.** There is no email provider, so a customer who forgets their password cannot recover the account. This needs an email (or SMS) provider before launch. It is the most important gap here.
+- **Password reset exists, but cannot deliver email yet.** The flow is built and tested (see below), and the email provider is a local fake that prints to the server log. Before launch an adapter for a real email service must be written and selected, or customers who forget their password are locked out.
 - **Sign-up does not verify email**, so a typo'd address is accepted.
 - **A paid order cannot be cancelled by the customer** from the site. Cancelling means refunding, which staff do in Phase 3. A payment that cannot be applied (wrong amount, a cancelled order, a second payment) is recorded and flagged in `audit_log`, with no screen to see or refund it until Phase 3.
 - **`PAYMENT_PROVIDER=mock` exposes a public fake payment page** that marks orders paid. That is intended for showcase deploys (hard rule 11) and must not be used for a restaurant taking real orders.
@@ -33,11 +33,8 @@ The plan's eleven rulings stand (tax order, slot rules, the expiry job verifying
 
 ## Deferred minor findings
 
-- Two cart quote requests fire on first render (an empty one before the cart loads from the browser, then the real one).
 - Account deletion leaves `order_events.actor_id` values that no longer point to anyone. They carry no personal data.
-- The delete-account confirmation box clears when the server refuses (for example, with an order in progress).
 - `legal-page.tsx` shows a "template wording" banner outside production only; nothing forces the restaurant to replace the text.
-- The sample config's brand colour passes the 4.5:1 check by a small margin.
 
 ## State left on this machine
 
@@ -48,3 +45,9 @@ The plan's eleven rulings stand (tax order, slot rules, the expiry job verifying
 ## Review
 
 Self-review by the author, not a fresh reviewer. The live walkthrough found five real defects the tests had not: a cached provider breaking `instanceof` after a reload (twice), forms wiping what was typed, a validation message that never appeared, and a skip link under the 44px touch target. A fresh review (`/code-review`) is recommended before merging.
+
+## Added after approval: password reset and clean-up
+
+- **Password reset.** `EmailProvider` (interface, `MockEmailProvider`, `EMAIL_PROVIDER`), Better Auth's `sendResetPassword` wired to it, `/forgot-password` and `/reset-password`, a "Forgot your password?" link, and a confirmation on the sign-in page. Rulings: a reset request answers identically for known and unknown addresses (and a failed send is logged, not shown, for the same reason); the link works once and expires in 1 hour; a successful reset deletes every session on the account; the emails are plain text; Turnstile guards the request form. Tested against a real database: one email per request, none for unknown addresses, the new password works and the old does not, single use, expiry, a made-up token, a too-short password not spending the link, and sessions revoked.
+- **Clean-up.** The empty cart is no longer sent for pricing, the delete-account tick survives a refusal, `_`-prefixed unused parameters no longer warn (lint now reports zero warnings), and the walkthrough's test account and order were removed from the dev database. The sample brand colour measures 5.18:1 against white, so that note was wrong and is gone.
+- **Left alone on purpose:** your other project's database (Phase 1 incident). Changing a database I do not own needs your explicit go-ahead.

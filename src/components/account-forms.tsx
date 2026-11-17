@@ -60,7 +60,7 @@ export function DeleteAccountForm() {
   return (
     <form action={action} className="space-y-4" noValidate>
       <label className="flex min-h-11 items-start gap-3">
-        <input type="checkbox" name="confirm" className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--bad)]" />
+        <input type="checkbox" name="confirm" defaultChecked={state?.values?.confirm === "on"} key={`c${state?.values?.confirm}`} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--bad)]" />
         <span>I understand this cannot be undone.</span>
       </label>
       {state?.fieldErrors?.confirm && (

@@ -8,9 +8,10 @@ import { safeNext } from "@/lib/safe-redirect";
 export const metadata: Metadata = { title: "Sign in" };
 
 async function SignIn({ searchParams }: { searchParams: PageProps<"/sign-in">["searchParams"] }) {
-  const next = safeNext((await searchParams).next as string | undefined);
+  const params = await searchParams;
+  const next = safeNext(params.next as string | undefined);
   if (await getIdentity()) redirect(next);
-  return <SignInForm next={next} />;
+  return <SignInForm next={next} notice={params.reset ? "Your password was changed. Sign in with the new one." : undefined} />;
 }
 
 export default function SignInPage(props: PageProps<"/sign-in">) {
