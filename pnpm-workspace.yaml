@@ -1,4 +1,8 @@
 allowBuilds:
+  # Allowed: unpacks the PostgreSQL 18 binaries used for local development and tests.
+  "@embedded-postgres/windows-x64": true
+  # Denied explicitly. pnpm 12 fails an install that leaves a build script undecided.
+  # None of these needs its install script: esbuild ships its binary as a platform package.
+  esbuild: false
   sharp: false
   unrs-resolver: false
-  "@embedded-postgres/windows-x64": true
