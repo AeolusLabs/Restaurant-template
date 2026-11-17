@@ -56,7 +56,8 @@ describe("mock payment provider", () => {
     const p = new MockPaymentProvider();
     const r = await p.initialize({ orderId: "o1", amountMinor: 350_000, email: "a@b.co", reference: "ref-1", callbackUrl: "http://x/cb" });
     expect(r.reference).toBe("ref-1");
-    expect(r.authorizationUrl).toContain("ref-1");
+    // The mock "payment page" is a screen in this app, so the whole purchase can be tried locally.
+    expect(r.authorizationUrl).toBe("http://x/mock-pay/ref-1");
   });
 
   test("verify reflects simulatePayment and the initialised amount", async () => {

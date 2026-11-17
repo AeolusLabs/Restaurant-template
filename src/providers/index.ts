@@ -21,9 +21,11 @@ registerProvider("storage", "memory", () => new MemoryStorageProvider());
 export { getProviders, registerProvider };
 export type { Providers };
 
-let cached: Providers | undefined;
+// Kept on globalThis so every route bundle, and development reloads, share one instance. The mock payment
+// provider holds its state in memory, so a second copy would not know about payments started by the first.
+const holder = globalThis as typeof globalThis & { __providers?: Providers };
 
 /** The application's providers, built once from the environment on first use. */
 export function providers(): Providers {
-  return (cached ??= getProviders(loadEnv()));
+  return (holder.__providers ??= getProviders(loadEnv()));
 }

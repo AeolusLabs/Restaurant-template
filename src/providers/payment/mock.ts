@@ -26,7 +26,8 @@ export class MockPaymentProvider implements PaymentProvider {
 
   async initialize(input: PaymentInitInput): Promise<PaymentInit> {
     this.payments.set(input.reference, { status: "abandoned", amountMinor: input.amountMinor, currency: this.currency });
-    return { authorizationUrl: `https://mock-pay.invalid/pay/${input.reference}`, reference: input.reference };
+    // The fake payment page is a screen in this app (src/app/mock-pay), reached on the same origin as the callback.
+    return { authorizationUrl: `${new URL(input.callbackUrl).origin}/mock-pay/${input.reference}`, reference: input.reference };
   }
 
   /** Test hook: pretend the customer finished (or failed) paying on the provider's page. */

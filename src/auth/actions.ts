@@ -6,16 +6,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { withSystemContext } from "@/db/context";
+import { fieldErrors, text, type FormState } from "@/lib/form";
 import { safeNext } from "@/lib/safe-redirect";
 import { getAuth } from "./auth";
 import { ConsentRequiredError, signUpCustomer } from "./signup";
-
-export type FormState = { error?: string; fieldErrors?: Record<string, string> } | undefined;
-
-const text = (f: FormData, k: string): string => {
-  const v = f.get(k);
-  return typeof v === "string" ? v : "";
-};
 
 const signInSchema = z.object({ email: z.email("Enter a valid email"), password: z.string().min(1, "Enter your password") });
 const signUpSchema = z.object({
@@ -23,12 +17,6 @@ const signUpSchema = z.object({
   email: z.email("Enter a valid email"),
   password: z.string().min(8, "Use at least 8 characters").max(128),
 });
-
-function fieldErrors(error: z.ZodError): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const issue of error.issues) out[String(issue.path[0] ?? "form")] ??= issue.message;
-  return out;
-}
 
 export async function signInAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = signInSchema.safeParse({ email: text(formData, "email"), password: text(formData, "password") });
