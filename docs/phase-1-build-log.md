@@ -84,6 +84,21 @@ Fixes here: the dev port is now 55432, `startCluster` refuses a port in use on I
 
 Keep the project path short. The Postgres binary package creates symlinks during install; a deeply nested path made that fail silently in a test clone, and `initdb` then failed with a missing extension file. This project lives at `C:\Users\Leigh\Desktop\restaurant-template`, which is fine.
 
+## Local machine problem: damaged pnpm store entry
+
+On this machine the shared pnpm store has a damaged entry for `@embedded-postgres/windows-x64@18.6.0-beta.19`: after an install, its `dist/` folder (and `LICENSE.md`) can be missing, so `pnpm test` fails with `ERR_MODULE_NOT_FOUND ... windows-x64/dist/index.js`. The published package is fine: a clean store at a short path installs and passes all 206 tests. `pnpm install --force` did not repair the entry, and the restored folder disappeared once during cleanup work.
+
+If it happens again, restore the folder from the published tarball, from the project root:
+```
+npm pack @embedded-postgres/windows-x64@18.6.0-beta.19
+tar -xzf embedded-postgres-windows-x64-18.6.0-beta.19.tgz package/dist
+```
+then copy `package/dist` into `node_modules/.pnpm/@embedded-postgres+windows-x64@18.6.0-beta.19/node_modules/@embedded-postgres/windows-x64/`. A project-local store (`store-dir` in a `.npmrc`) avoids the shared store entirely. I did not run `pnpm store prune`, because the store is shared with your other projects.
+
+## Flaky test fixed
+
+`tests/seed.test.ts` counted every user in the shared test database, so it failed intermittently when another test file created users at the same moment. It now checks only its own email. Three consecutive full runs passed afterwards.
+
 ## Review
 
 The final review was a self-review by the author, not a fresh reviewer. It found four Important issues, fixed test-first: `embedded-postgres` listed as a production dependency, a raw Zod dump as the config error, environment and config not validated at server start, and documentation drift. A fresh-clone check found a fifth, the failing `pnpm install`. A fresh review (`/code-review`) is recommended before merging.

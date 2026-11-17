@@ -99,11 +99,13 @@ describe("seedOwnerFromEnv", () => {
   });
 
   test("does nothing when the environment variables are unset", async () => {
-    const before = (await admin().query(`select count(*)::int as n from "user"`)).rows[0].n;
+    // Other test files create users in the same database at the same time, so check this test's own
+    // email rather than counting every user.
+    const only = `only-email+${Date.now()}@example.com`;
     expect(await seedOwnerFromEnv({}, deps)).toEqual({ created: false });
-    expect(await seedOwnerFromEnv({ INITIAL_OWNER_EMAIL: "x@example.com" }, deps)).toEqual({ created: false });
+    expect(await seedOwnerFromEnv({ INITIAL_OWNER_EMAIL: only }, deps)).toEqual({ created: false });
     expect(await seedOwnerFromEnv({ INITIAL_OWNER_PASSWORD: "a strong first password" }, deps)).toEqual({ created: false });
-    expect((await admin().query(`select count(*)::int as n from "user"`)).rows[0].n).toBe(before);
+    expect((await admin().query(`select 1 from "user" where email = $1`, [only])).rowCount).toBe(0);
   });
 
   test("a weak password stops the seed with a clear error and creates nothing", async () => {
