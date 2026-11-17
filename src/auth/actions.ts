@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { withSystemContext } from "@/db/context";
 import { echo, fieldErrors, text, type FormState } from "@/lib/form";
+import { HUMAN_CHECK_FAILED, passesHumanCheck } from "@/lib/human-check";
 import { safeNext } from "@/lib/safe-redirect";
 import { getAuth } from "./auth";
 import { ConsentRequiredError, signUpCustomer } from "./signup";
@@ -23,6 +24,7 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
   const parsed = signInSchema.safeParse({ email: text(formData, "email"), password: text(formData, "password") });
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
   const { email, password } = parsed.data;
+  if (!(await passesHumanCheck(formData))) return { error: HUMAN_CHECK_FAILED, values };
 
   // Say plainly when an account has been blocked, instead of a password error that never goes away.
   const { rows } = await withSystemContext((tx) =>
@@ -45,6 +47,7 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
   const values = echo(formData, ["name", "email", "terms", "privacy", "marketing"]);
   const parsed = signUpSchema.safeParse({ name: text(formData, "name"), email: text(formData, "email"), password: text(formData, "password") });
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error), values };
+  if (!(await passesHumanCheck(formData))) return { error: HUMAN_CHECK_FAILED, values };
 
   try {
     await signUpCustomer({

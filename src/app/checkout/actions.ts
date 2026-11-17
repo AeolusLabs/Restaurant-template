@@ -5,6 +5,7 @@ import { getIdentity } from "@/auth/customer";
 import { OrderRejectedError, createPickupOrder } from "@/db/orders";
 import { createOrderSchema } from "@/domain/checkout/order-input";
 import { echo, fieldErrors, text, type FormState } from "@/lib/form";
+import { HUMAN_CHECK_FAILED, passesHumanCheck } from "@/lib/human-check";
 import { PaymentStartError, startPayment } from "@/payments/start-payment";
 
 const REJECTIONS: Record<OrderRejectedError["code"], string> = {
@@ -27,6 +28,7 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
   if (!identity) redirect("/sign-in?next=%2Fcheckout");
 
   const values = echo(formData, ["pickupAt", "phone", "notes"]);
+  if (!(await passesHumanCheck(formData))) return { error: HUMAN_CHECK_FAILED, values };
   let lines: unknown;
   try {
     lines = JSON.parse(text(formData, "lines"));

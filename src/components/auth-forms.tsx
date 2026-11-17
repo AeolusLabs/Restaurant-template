@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { signInAction, signUpAction } from "@/auth/actions";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import { button, field, label } from "@/components/ui";
 
 function Submit({ children, pending: pendingText }: { children: string; pending: string }) {
@@ -49,6 +50,7 @@ export function SignInForm({ next }: { next: string }) {
           {state.error}
         </p>
       )}
+      <TurnstileWidget />
       <Submit pending="Signing in…">Sign in</Submit>
       <p className="text-center text-muted">
         New here?{" "}
@@ -129,6 +131,7 @@ export function SignUpForm({ next }: { next: string }) {
           {state.error}
         </p>
       )}
+      <TurnstileWidget />
       <Submit pending="Creating your account…">Create account</Submit>
       <p className="text-center text-muted">
         Already have an account?{" "}

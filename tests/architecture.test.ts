@@ -46,6 +46,14 @@ describe("architecture rules", () => {
     expect(offenders).toEqual([]);
   });
 
+  test("screens, actions, jobs and the db layer reach a provider only through @/providers, never an implementation file", () => {
+    const impl = /^@\/providers\/[^/]+\/(paystack|chowdeck|s3|mock|stub|memory)$/;
+    const offenders = ["app", "components", "payments", "jobs", "account", "db", "auth", "lib"].flatMap((dir) =>
+      walk(path.join(root, "src", dir)).flatMap((f) => importsOf(f).filter((i) => impl.test(i)).map((i) => rel(f) + " imports " + i)),
+    );
+    expect(offenders).toEqual([]);
+  });
+
   test("no route handler exports a runtime (Cache Components forbids it)", () => {
     const offenders = walk(path.join(root, "src/app")).filter((f) => /export\s+const\s+runtime\b/.test(readFileSync(f, "utf8"))).map(rel);
     expect(offenders).toEqual([]);

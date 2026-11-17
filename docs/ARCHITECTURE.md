@@ -60,7 +60,7 @@ restaurant-template/
       (admin)/admin/           dashboard, menu, orders, staff, customers, promos, qr, agents
       (kitchen)/kitchen/       kitchen display
       api/
-        webhooks/paystack/
+        webhooks/payment/       provider-agnostic payment webhook (built)
         webhooks/chowdeck/
         stream/orders/         Server-Sent Events
         media/[...key]/        bucket proxy
@@ -441,3 +441,18 @@ What was built differs from the Phase 0 text in these ways. Each is also recorde
 - **First owner.** `db:seed` creates it from `INITIAL_OWNER_EMAIL` and `INITIAL_OWNER_PASSWORD` when no user has that email. Remove both variables after the first run.
 - **Modules and providers** are covered in `docs/modules.md`. Providers ship as interfaces with working fakes; Paystack, Chowdeck, S3 and an SMS or WhatsApp adapter are not written yet and fail at startup with a clear message if selected.
 - **Boot validation.** `src/instrumentation.ts` runs `validateBoot()`: the environment parses, the config parsed when imported, and the enabled modules resolve.
+
+## 21. Phase 2 implementation notes
+
+What the customer side added, and where it differs from the text above. Rulings are listed in `docs/phase-2-build-log.md`.
+
+- **Pricing** is pure code in `src/domain/pricing/price-cart.ts`. The browser's cart holds item ids, modifier ids and quantities, never prices. Service charge applies to the subtotal and tax to subtotal plus service charge; with `pricesIncludeCharges` the same charges are extracted from the price instead.
+- **Checkout** is `createPickupOrder()` (`src/db/orders.ts`): one transaction that validates the pickup slot (`src/domain/pickup/slots.ts`), prices from the database, and writes the order, line snapshots and contact row. A `checkout_token` makes a double submit return the same order, and `expectedTotalMinor` refuses an order whose total is no longer the one the customer saw.
+- **Payment** is `startPayment()` then the webhook. `settlePayment()` (`src/payments/apply-payment.ts`) is the only code that moves `placed` to `paid`: it asks the provider to verify, compares amount and currency, and applies the change inside the same transaction as the stored event. Money that cannot be applied is kept and flagged in `audit_log`.
+- **Webhook route** is `/api/webhooks/payment`, not a path per vendor, because business logic does not know the vendor. A bad signature is 401, an unreadable body 400, and a processing failure 500 so the provider retries.
+- **Worker** (`pnpm worker`) runs `expireUnpaidOrders()` every minute. It asks the provider about each open payment before cancelling, so a missed webhook never cancels a paid order. pg-boss replaces the interval loop in Phase 4.
+- **Tracking** polls `GET /api/orders/[code]` every 4 seconds while the tab is visible. The NOTIFY trigger and SSE stream arrive with the kitchen display in Phase 3.
+- **Accounts**: sign-up with unticked consent boxes, sign-in, profile, marketing consent, JSON export (`/api/me/export`) and deletion. Deletion needs `orders.profile_id` to be nullable with `ON DELETE SET NULL` (migration 0007), anonymises the customer's orders, and blanks the provider payloads stored for their payments.
+- **Cache Components**: every screen that reads the session or the database sits behind `<Suspense>`, and time-dependent screens call `connection()` first.
+- **Branding**: `config.colors.primary` must be written as `oklch()` and dark enough for white text (contrast at least 4.5:1); the config check refuses anything else.
+- **Turnstile**: `verifyTurnstile()` runs in the sign-up, sign-in and checkout actions when `TURNSTILE_SECRET_KEY` is set.

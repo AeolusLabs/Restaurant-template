@@ -32,33 +32,33 @@
 
 ## Tasks
 
-- [ ] **T1 Foundations.** Migration `0007_phase2` (`orders.profile_id` nullable + `SET NULL`, `orders.checkout_token` with a unique index on `(profile_id, checkout_token)` so a double submit returns the same order, `GRANT UPDATE ON order_contacts TO system`), applied to dev. `withPublicContext()`. `transitionOrderIn(tx, input)` extracted from `transitionOrder`.
+- [x] **T1 Foundations.** Migration `0007_phase2` (`orders.profile_id` nullable + `SET NULL`, `orders.checkout_token` with a unique index on `(profile_id, checkout_token)` so a double submit returns the same order, `GRANT UPDATE ON order_contacts TO system`), applied to dev. `withPublicContext()`. `transitionOrderIn(tx, input)` extracted from `transitionOrder`.
   - Tests: `tests/phase2-foundation.test.ts`: anonymous context reads active menu and nothing else; `transitionOrderIn` joins a caller's transaction and rolls back with it; deleting an auth user keeps its orders with `profile_id` null.
-- [ ] **T2 Pricing (pure).** `src/domain/pricing/price-cart.ts`: `priceCart(lines, menu, charges)` returns `{ lines, subtotalMinor, serviceChargeMinor, taxMinor, totalMinor }` or typed problems per line (`not_found`, `inactive`, `sold_out`, `modifier_invalid`, `selection_count`, `quantity`).
+- [x] **T2 Pricing (pure).** `src/domain/pricing/price-cart.ts`: `priceCart(lines, menu, charges)` returns `{ lines, subtotalMinor, serviceChargeMinor, taxMinor, totalMinor }` or typed problems per line (`not_found`, `inactive`, `sold_out`, `modifier_invalid`, `selection_count`, `quantity`).
   - Tests: exclusive and inclusive modes, rounding at half, zero charges, modifiers add deltas, min/max select, unavailable item and modifier, quantity bounds, large quantities stay exact integers.
-- [ ] **T3 Pickup slots (pure).** `src/domain/pickup/slots.ts`: `pickupSlots(now, config)` and `isValidPickupSlot(at, now, config)`.
+- [x] **T3 Pickup slots (pure).** `src/domain/pickup/slots.ts`: `pickupSlots(now, config)` and `isValidPickupSlot(at, now, config)`.
   - Tests: lead time, cutoff, closed day, break between two windows, midnight in the restaurant's timezone, a non-Lagos zone with DST, slot grid alignment.
-- [ ] **T4 Cart schema and order code (pure).** `src/domain/checkout/cart.ts` (`cartSchema`, `lineKey`), `src/domain/orders/public-code.ts` (`generatePublicCode()`, no `0 O 1 I`).
+- [x] **T4 Cart schema and order code (pure).** `src/domain/checkout/cart.ts` (`cartSchema`, `lineKey`), `src/domain/orders/public-code.ts` (`generatePublicCode()`, no `0 O 1 I`).
   - Tests: rejects negative, fractional and huge quantities, more than 50 lines, non-UUIDs; strips unknown keys such as `price`; code alphabet and length.
-- [ ] **T5 Menu read model.** `src/db/menu.ts`: `loadMenu()`, `loadMenuItem(slug)` (public context, active and sold-out flags, modifier groups).
+- [x] **T5 Menu read model.** `src/db/menu.ts`: `loadMenu()`, `loadMenuItem(slug)` (public context, active and sold-out flags, modifier groups).
   - Tests against the seed: categories ordered, inactive hidden, sold-out flagged.
-- [ ] **T6 Create order.** `src/db/orders.ts`: `createPickupOrder(ctx, input)` and `getOrderForCustomer`, `listOrdersForCustomer`. `toPublicOrder()` in `src/lib/sanitize.ts`.
+- [x] **T6 Create order.** `src/db/orders.ts`: `createPickupOrder(ctx, input)` and `getOrderForCustomer`, `listOrdersForCustomer`. `toPublicOrder()` in `src/lib/sanitize.ts`.
   - Tests: prices from the database even when the client sends a price; snapshots survive a later menu edit; contact row written; kitchen cannot read contacts; another customer cannot read the order; closed or invalid slot refused; pickup feature off refuses; unavailable item refused.
-- [ ] **T7 Payments.** `src/payments/start-payment.ts`, `src/payments/apply-payment.ts`, `src/payments/webhook.ts`, `src/jobs/expire-unpaid.ts`.
+- [x] **T7 Payments.** `src/payments/start-payment.ts`, `src/payments/apply-payment.ts`, `src/payments/webhook.ts`, `src/jobs/expire-unpaid.ts`.
   - Tests: attempt creates a unique reference and a retry creates a new one; replayed event changes nothing; concurrent duplicate delivery processes once; bad signature returns 401 and stores nothing; valid signature with mismatched amount does not mark paid and writes an audit entry; verify says failed leaves the order placed; payment after cancellation is recorded and flagged, not applied; expiry cancels only overdue unpaid orders and applies a payment the provider says succeeded.
-- [ ] **T8 Paystack adapter.** `src/providers/payment/paystack.ts`, registered in `src/providers/index.ts`.
+- [x] **T8 Paystack adapter.** `src/providers/payment/paystack.ts`, registered in `src/providers/index.ts`.
   - Tests with a fake `fetch`: initialize request shape and kobo amounts, verify status mapping, HMAC-SHA512 signature check (constant time, bad and missing header), event ids, refund call, provider errors become `PaymentProviderError`, secrets never appear in thrown messages.
-- [ ] **T9 Worker.** `src/jobs/worker.ts`, `scripts/worker.mts`, `pnpm worker`. Runs expiry every minute; stops cleanly on SIGINT.
+- [x] **T9 Worker.** `src/jobs/worker.ts`, `scripts/worker.mts`, `pnpm worker`. Runs expiry every minute; stops cleanly on SIGINT.
   - Tests: one tick runs the job; a failing job does not stop the loop.
-- [ ] **T10 Customer accounts (server side).** `nextCookies()` plugin, `src/auth/customer.ts` (`getCustomer()` for server components), server actions `signUpAction`, `signInAction`, `signOutAction`, `src/account/export.ts`, `src/account/delete.ts`, consent withdrawal.
+- [x] **T10 Customer accounts (server side).** `nextCookies()` plugin, `src/auth/customer.ts` (`getCustomer()` for server components), server actions `signUpAction`, `signInAction`, `signOutAction`, `src/account/export.ts`, `src/account/delete.ts`, consent withdrawal.
   - Tests: export contains only the caller's rows and no hashes; deletion refused while an order is active; deletion anonymises orders and removes the auth user; a `data_requests` row is written; marketing consent can be withdrawn but terms cannot.
-- [ ] **T11 UI foundation.** Root layout, config-driven tokens, header with cart count, footer, skip link, legal pages, error and not-found pages.
-- [ ] **T12 Menu and cart UI.** Menu page, item page, client cart store, cart page with server quote.
-- [ ] **T13 Checkout, payment return and tracking.** Checkout page and place-order action, `/mock-pay/[reference]`, `/orders`, `/orders/[code]`, `GET /api/orders/[code]`, `POST /api/webhooks/payment`.
-- [ ] **T14 Account UI.** Sign-in, sign-up with unticked marketing consent, account page, data export and deletion screens, `GET /api/me/export`.
-- [ ] **T15 Turnstile.** `src/lib/turnstile.ts` (`verifyTurnstile`), widget shown only when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set, wired into sign-up, sign-in and checkout actions.
+- [x] **T11 UI foundation.** Root layout, config-driven tokens, header with cart count, footer, skip link, legal pages, error and not-found pages.
+- [x] **T12 Menu and cart UI.** Menu page, item page, client cart store, cart page with server quote.
+- [x] **T13 Checkout, payment return and tracking.** Checkout page and place-order action, `/mock-pay/[reference]`, `/orders`, `/orders/[code]`, `GET /api/orders/[code]`, `POST /api/webhooks/payment`.
+- [x] **T14 Account UI.** Sign-in, sign-up with unticked marketing consent, account page, data export and deletion screens, `GET /api/me/export`.
+- [x] **T15 Turnstile.** `src/lib/turnstile.ts` (`verifyTurnstile`), widget shown only when `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is set, wired into sign-up, sign-in and checkout actions.
   - Tests with a fake `fetch`: success, failure, network error fails closed when a secret is set, skipped (and logged once) when unset.
-- [ ] **T16 Docs and verification.** Update `docs/ARCHITECTURE.md` (section 21), `docs/runbook.md`, `CLAUDE.md` commands, build log. Full gate (`typecheck`, `lint`, `test`, `build`), live HTTP run of the whole purchase flow on the mock provider, screenshots at 375px and 1280px, accessibility pass, self-review.
+- [x] **T16 Docs and verification.** Update `docs/ARCHITECTURE.md` (section 21), `docs/runbook.md`, `CLAUDE.md` commands, build log. Full gate (`typecheck`, `lint`, `test`, `build`), live HTTP run of the whole purchase flow on the mock provider, screenshots at 375px and 1280px, accessibility pass, self-review.
 
 ## Review focus (inputs the tests above must not miss)
 

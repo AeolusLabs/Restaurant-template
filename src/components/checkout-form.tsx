@@ -9,6 +9,7 @@ import { problemText } from "@/components/cart/problems";
 import { useCart } from "@/components/cart/store";
 import { OrderTotals } from "@/components/cart/totals";
 import { useQuote } from "@/components/cart/use-quote";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import { button, card, field, label } from "@/components/ui";
 
 type Props = {
@@ -168,6 +169,7 @@ export function CheckoutForm({ days, defaultPhone, checkoutToken, address }: Pro
         </p>
       )}
 
+      <TurnstileWidget />
       <div className="space-y-2">
         <PayButton totalMinor={ready ? quote.totalMinor : null} disabled={!ready} />
         <p className="text-sm text-muted">You will pay on the payment provider&apos;s secure page. We never see your card details.</p>

@@ -9,7 +9,7 @@ One Railway project per restaurant, with:
 - `web` service: this repo, built from the `Dockerfile` (`runner` target) or Railpack. The only service with a public domain.
 - PostgreSQL 18 service, with the connection pooler (PgBouncer, transaction mode) enabled for `web`.
 - One storage bucket (private, S3-compatible).
-- `worker` service: added in Phase 2 or later, same repo, different start command.
+- `worker` service: same repo, start command `pnpm worker`. It runs the unpaid-order expiry job every minute, so it must be running for abandoned orders to be cancelled. It needs the same `DATABASE_SYSTEM_URL`, `PAYMENT_PROVIDER` and provider keys as `web`.
 
 The `web` service talks to Postgres over Railway's private network (`*.railway.internal`).
 
@@ -67,8 +67,8 @@ Restore rehearsal, once before launch and after any change to how data is stored
 - DNS: a proxied (orange-cloud) CNAME from the domain to the Railway `web` custom domain.
 - SSL/TLS mode **Full (strict)**. **verify** the certificate setup for a Railway custom domain behind the proxy.
 - **Origin lock.** A Transform Rule adds the request header `x-origin-lock: <ORIGIN_LOCK_SECRET>` to every proxied request. `src/proxy.ts` rejects requests without it with 403. Railway's own `*.up.railway.app` URL then cannot be used to skip the WAF. Disable that URL too if Railway allows.
-- WAF: managed rules and bot protection on. Rate limits on login and checkout paths. A skip rule for `/api/webhooks/*` so Paystack and Chowdeck are not challenged; their signature checks are the gate there.
-- Turnstile on sign-up, sign-in and checkout. The server verifies the token (Phase 2).
+- WAF: managed rules and bot protection on. Rate limits on login and checkout paths. A skip rule for `/api/webhooks/*` (the payment webhook is `/api/webhooks/payment`) so the providers are not challenged; their signature checks are the gate there. In the Paystack dashboard set the webhook URL to `https://<domain>/api/webhooks/payment`.
+- Turnstile on sign-up, sign-in and checkout. Create a widget in the Cloudflare dashboard, then set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (a build-time variable, so set it before the build) and `TURNSTILE_SECRET_KEY`. With no secret the server skips the check and logs a warning, so a production deploy without it has no bot protection on those forms.
 - Optional: Cloudflare Access in front of `/admin` and `/kitchen`. Check the free-tier seat limit.
 - Streams (kitchen feed, later): send a comment line every 25 seconds so Cloudflare's idle timeout does not close the connection.
 
@@ -79,3 +79,11 @@ Restore rehearsal, once before launch and after any change to how data is stored
 3. Confirm backups and PITR are on, and run section 4.
 4. Sign up through the site, confirm the profile and consent rows exist, then sign in with the first owner.
 5. Check that a request straight to the Railway URL (no Cloudflare) returns 403.
+
+## 8. Phase 2 checks before taking real orders
+
+1. **Mock provider.** `PAYMENT_PROVIDER=mock` serves a public fake payment page at `/mock-pay/<reference>` that marks an order paid with no real money. That is right for a showcase deploy and wrong for a restaurant taking orders. Confirm the variable says `paystack` in production.
+2. **Paystack, with a test key first.** The adapter has only been tested against a fake `fetch`. With `PAYSTACK_SECRET_KEY` set to a test key: place an order, pay with Paystack's test card, and confirm the webhook arrives at `/api/webhooks/payment`, the order becomes paid, and a replayed event changes nothing. **verify**
+3. **Worker.** Place an order, do not pay, and confirm it is cancelled after `orders.unpaidExpiryMinutes` (watch the worker log for `expire-unpaid`).
+4. **Legal pages.** `/legal/terms` and `/legal/privacy` hold template wording. Replace it with the restaurant's reviewed text and bump `legal.policyVersion` in `config/restaurant.ts`.
+5. **Refunds.** A payment that cannot be applied (wrong amount, a cancelled order, a second payment) is recorded in `payments` and flagged in `audit_log` as `payment.mismatch`, `payment.late` or `payment.duplicate`. Until the Phase 3 admin screens exist, check for these with SQL and refund in the Paystack dashboard.
