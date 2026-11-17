@@ -70,6 +70,8 @@ Migrations: tables come from `drizzle-kit generate`, everything else (RLS, funct
 
 Never point the dev scripts at a database you do not own. `bootstrapRoles` refuses anything that is not real PostgreSQL 18, and `db:local` refuses a port that is already in use.
 
+Before committing, gate on real exit codes (`pnpm typecheck && pnpm lint && pnpm test`), never on a piped command's exit code. Keep the project path short on Windows: a deep path breaks the Postgres binary package's symlinks during install. Decisions, deferred findings and what is unverified are in `docs/phase-1-build-log.md`; modules and providers are in `docs/modules.md`.
+
 ## Design
 
 Follow `PRODUCT.md`: register `product`, personality "quick, easy to use, trustworthy", fully responsive on every surface including the admin, WCAG 2.2 AA, and neutral by default so branding arrives through config tokens.
