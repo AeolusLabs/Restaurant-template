@@ -50,3 +50,25 @@ export function formatMoney(amountMinor: number, fmt: MoneyFormat): string {
     maximumFractionDigits: fmt.exponent,
   }).format(decimal as unknown as number);
 }
+
+/**
+ * Reads an amount a person typed ("3500", "3,500.50") into the minor unit, exactly. Returns null for anything
+ * that is not a plain non-negative amount with at most `exponent` decimals, or too large to hold exactly.
+ * It never rounds: "3500.555" is refused, not turned into 3500.56.
+ */
+export function parseMoneyInput(input: string, exponent: number): number | null {
+  const m = /^(\d+|\d{1,3}(?:,\d{3})+)?(?:\.(\d+))?$/.exec(input.trim());
+  if (!m || (m[1] === undefined && m[2] === undefined)) return null;
+  const whole = (m[1] ?? "0").replaceAll(",", "");
+  const frac = m[2] ?? "";
+  if (frac.length > exponent) return null;
+  const minor = BigInt(whole + frac.padEnd(exponent, "0"));
+  return minor > BigInt(Number.MAX_SAFE_INTEGER) ? null : Number(minor);
+}
+
+/** The minor unit written as a plain editable amount: 350050 becomes "3500.50". */
+export function moneyInputValue(amountMinor: number, exponent: number): string {
+  assertMinor(amountMinor);
+  const digits = String(amountMinor).padStart(exponent + 1, "0");
+  return exponent === 0 ? digits : `${digits.slice(0, -exponent)}.${digits.slice(-exponent)}`;
+}

@@ -70,7 +70,38 @@ export function toPublicOrder(row: Record<string, unknown> | object, items: Publ
   };
 }
 
-export type PublicUser ={ id: string; name: string; email: string; role: AppRole };
+export type StaffOrderJson = {
+  publicCode: string;
+  status: string;
+  fulfilment: string;
+  customerName: string;
+  phone: string | null;
+  notes: string | null;
+  pickupAt: string | null;
+  placedAt: string;
+  totalMinor: number;
+  items: PublicOrderItem[];
+};
+
+/** The view of an order sent to staff screens over JSON. A whitelist: no owner id, no internal ids. */
+export function toStaffOrder(row: Record<string, unknown> | object, items: PublicOrderItem[], phone: string | null): StaffOrderJson {
+  const base = toPublicOrder(row, items);
+  const r = row as Record<string, unknown>;
+  return {
+    publicCode: base.publicCode,
+    status: base.status,
+    fulfilment: base.fulfilment,
+    customerName: typeof r.customerName === "string" ? r.customerName : "",
+    phone,
+    notes: base.notes,
+    pickupAt: base.pickupAt,
+    placedAt: base.placedAt,
+    totalMinor: base.totalMinor,
+    items: base.items,
+  };
+}
+
+export type PublicUser = { id: string; name: string; email: string; role: AppRole };
 
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 

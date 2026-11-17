@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { applyBps, assertMinor, extractInclusiveBps, formatMoney } from "../src/lib/money";
+import { applyBps, assertMinor, extractInclusiveBps, formatMoney, moneyInputValue, parseMoneyInput } from "../src/lib/money";
 
 describe("assertMinor", () => {
   test("rejects 10.5, NaN, Infinity and 2**53", () => {
@@ -70,5 +70,56 @@ describe("formatMoney", () => {
   });
   test("formats a negative amount and a sub-unit amount exactly", () => {
     expect(formatMoney(-5, { currency: "NGN", exponent: 2, locale: "en-NG" })).toContain("0.05");
+  });
+});
+
+
+describe("parseMoneyInput", () => {
+  test("reads whole and decimal amounts exactly, in the minor unit", () => {
+    expect(parseMoneyInput("3500", 2)).toBe(350_000);
+    expect(parseMoneyInput("3500.5", 2)).toBe(350_050);
+    expect(parseMoneyInput("3500.50", 2)).toBe(350_050);
+    expect(parseMoneyInput("0.01", 2)).toBe(1);
+    expect(parseMoneyInput("0", 2)).toBe(0);
+    expect(parseMoneyInput(".5", 2)).toBe(50);
+  });
+
+  test("accepts thousands commas and surrounding spaces", () => {
+    expect(parseMoneyInput(" 3,500.50 ", 2)).toBe(350_050);
+    expect(parseMoneyInput("1,234,567", 2)).toBe(123_456_700);
+  });
+
+  test("works for currencies with no decimals or three", () => {
+    expect(parseMoneyInput("500", 0)).toBe(500);
+    expect(parseMoneyInput("1.250", 3)).toBe(1_250);
+  });
+
+  test("refuses too many decimals instead of rounding", () => {
+    expect(parseMoneyInput("3500.555", 2)).toBeNull();
+    expect(parseMoneyInput("5.5", 0)).toBeNull();
+  });
+
+  test("refuses negatives, words, exponents, empty input and malformed commas", () => {
+    for (const bad of ["-1", "abc", "1e3", "", "  ", "12,34", "1,,000", ",5", "3500.", "1.2.3", "₦3500", "NaN"]) {
+      expect(parseMoneyInput(bad, 2), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  test("refuses an amount too large to hold exactly", () => {
+    expect(parseMoneyInput("90071992547409.92", 2)).toBeNull();
+    expect(parseMoneyInput("90071992547409", 2)).toBe(9_007_199_254_740_900);
+  });
+});
+
+describe("moneyInputValue", () => {
+  test("writes the minor unit as a plain amount a person can edit", () => {
+    expect(moneyInputValue(350_050, 2)).toBe("3500.50");
+    expect(moneyInputValue(350_000, 2)).toBe("3500.00");
+    expect(moneyInputValue(1, 2)).toBe("0.01");
+    expect(moneyInputValue(500, 0)).toBe("500");
+  });
+
+  test("round trips", () => {
+    for (const minor of [0, 1, 99, 100, 123_456_789]) expect(parseMoneyInput(moneyInputValue(minor, 2), 2)).toBe(minor);
   });
 });
