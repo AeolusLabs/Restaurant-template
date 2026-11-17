@@ -83,8 +83,8 @@ describe("createPickupOrder", () => {
       totalMinor: 1_241_625,
       currency: "NGN",
     });
-    expect(order.pickupAt.toISOString()).toBe(slot.toISOString());
-    expect(order.expiresAt.toISOString()).toBe(new Date(NOW.getTime() + 30 * 60_000).toISOString());
+    expect(order.pickupAt!.toISOString()).toBe(slot.toISOString());
+    expect(order.expiresAt!.toISOString()).toBe(new Date(NOW.getTime() + 30 * 60_000).toISOString());
     expect(order.publicCode).toMatch(/^[2-9A-HJ-NP-Z]{6}$/);
   });
 
