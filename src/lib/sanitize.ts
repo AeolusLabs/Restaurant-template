@@ -4,7 +4,73 @@ import { APP_ROLES, type AppRole } from "@/domain/roles";
 // route every user or profile row through toPublicUser() before it reaches a response.
 // This is a whitelist, so a column added to a table later is private until it is listed here.
 
-export type PublicUser = { id: string; name: string; email: string; role: AppRole };
+export type PublicOrderItem = {
+  name: string;
+  quantity: number;
+  unitPriceMinor: number;
+  modifiers: { name: string; priceDeltaMinor: number }[];
+  lineTotalMinor: number;
+};
+
+export type PublicOrder = {
+  publicCode: string;
+  status: string;
+  fulfilment: string;
+  pickupAt: string | null;
+  subtotalMinor: number;
+  discountMinor: number;
+  serviceChargeMinor: number;
+  taxMinor: number;
+  deliveryFeeMinor: number;
+  totalMinor: number;
+  currency: string;
+  notes: string | null;
+  placedAt: string;
+  expiresAt: string | null;
+  items: PublicOrderItem[];
+};
+
+const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : typeof v === "string" ? v : null);
+
+/** The customer-facing view of an order. A whitelist: internal ids, the owner and contact details are not in it. */
+export function toPublicOrder(row: Record<string, unknown> | object, items: PublicOrderItem[] = []): PublicOrder {
+  const r = row as Record<string, unknown>;
+  const num = (k: string): number => {
+    const v = r[k];
+    if (typeof v !== "number") throw new TypeError(`toPublicOrder: ${k} must be a number`);
+    return v;
+  };
+  const text = (k: string): string => {
+    const v = r[k];
+    if (typeof v !== "string") throw new TypeError(`toPublicOrder: ${k} must be a string`);
+    return v;
+  };
+  return {
+    publicCode: text("publicCode"),
+    status: text("status"),
+    fulfilment: text("fulfilment"),
+    pickupAt: iso(r.pickupAt),
+    subtotalMinor: num("subtotalMinor"),
+    discountMinor: num("discountMinor"),
+    serviceChargeMinor: num("serviceChargeMinor"),
+    taxMinor: num("taxMinor"),
+    deliveryFeeMinor: num("deliveryFeeMinor"),
+    totalMinor: num("totalMinor"),
+    currency: text("currency"),
+    notes: typeof r.notes === "string" ? r.notes : null,
+    placedAt: iso(r.placedAt) ?? "",
+    expiresAt: iso(r.expiresAt),
+    items: items.map((i) => ({
+      name: i.name,
+      quantity: i.quantity,
+      unitPriceMinor: i.unitPriceMinor,
+      modifiers: i.modifiers.map((m) => ({ name: m.name, priceDeltaMinor: m.priceDeltaMinor })),
+      lineTotalMinor: i.lineTotalMinor,
+    })),
+  };
+}
+
+export type PublicUser ={ id: string; name: string; email: string; role: AppRole };
 
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
 
