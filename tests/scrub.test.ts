@@ -45,7 +45,7 @@ describe("scrubValue", () => {
 });
 
 describe("withScrub", () => {
-  const call = (res: Response) => withScrub(async (_req: Request) => res)(new Request("http://localhost/x"));
+  const call = (res: Response) => withScrub<[Request]>(async () => res)(new Request("http://localhost/x"));
 
   test("scrubs an application/json response and keeps its status and headers", async () => {
     const res = await call(

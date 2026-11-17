@@ -1,4 +1,5 @@
 import type { BetterAuthOptions } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 
 export type AuthConfig = { secret: string; baseURL: string };
 
@@ -10,5 +11,15 @@ export function baseAuthOptions(cfg: AuthConfig) {
     emailAndPassword: { enabled: true },
     // UUID ids on every table, matching the rest of the schema.
     advanced: { database: { generateId: "uuid" } },
+    hooks: {
+      // Customers sign up only through signUpCustomer(), which records consent and creates the
+      // profile. A request that arrives over HTTP (it has a Request) is refused. Server-side calls
+      // to auth.api have none, so signUpCustomer and createStaffUser still work.
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-up/email" && ctx.request) {
+          throw new APIError("FORBIDDEN", { message: "Sign up through the application." });
+        }
+      }),
+    },
   } satisfies Omit<BetterAuthOptions, "database">;
 }

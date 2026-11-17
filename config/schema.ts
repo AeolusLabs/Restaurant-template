@@ -70,6 +70,10 @@ export const restaurantConfigSchema = z.object({
     ai_agents: z.boolean(),
     demo_mode: z.boolean(),
   }),
+  legal: z.object({
+    // Stored with every consent. Bump it when the terms or privacy policy change.
+    policyVersion: z.string().min(1),
+  }),
   agents: z.object({
     defaultMonthlyCapMinor: z.number().int().min(0),
     modelPrices: z.record(
