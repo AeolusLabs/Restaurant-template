@@ -10,6 +10,7 @@ const link = "inline-flex min-h-11 items-center rounded-lg px-3 text-base font-s
 type NavLink = { href: string; label: string; roles: readonly AppRole[]; /** Shown only when this feature is on in the config. */ feature?: keyof typeof restaurantConfig.features };
 const ADMIN_LINKS: readonly NavLink[] = [
   { href: "/admin", label: "Home", roles: ["owner", "manager"] },
+  { href: "/admin/dashboard", label: "Dashboard", roles: ["owner", "manager"] },
   { href: "/admin/orders", label: "Orders", roles: ["owner", "manager"] },
   { href: "/admin/menu", label: "Menu", roles: ["owner", "manager"] },
   { href: "/admin/customers", label: "Customers", roles: ["owner", "manager"] },

@@ -88,6 +88,9 @@ async function Home({ searchParams }: { searchParams: PageProps<"/admin">["searc
           Go to
         </h2>
         <div className="flex flex-wrap gap-3">
+          <Link href="/admin/dashboard" className={button.secondary}>
+            Dashboard
+          </Link>
           <Link href="/admin/orders" className={button.secondary}>
             Orders
           </Link>
