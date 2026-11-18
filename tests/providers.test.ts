@@ -6,6 +6,7 @@ import { registerProvider } from "../src/providers/registry";
 import { WebhookSignatureError } from "../src/providers/payment/types";
 import { PaystackProvider } from "../src/providers/payment/paystack";
 import { MockPaymentProvider, signMockWebhook } from "../src/providers/payment/mock";
+import { ChowdeckProvider } from "../src/providers/delivery/chowdeck";
 import { MockDeliveryProvider, signMockDeliveryWebhook } from "../src/providers/delivery/mock";
 import { DeliveryProviderError, InsufficientWalletError, QuoteExpiredError, type DeliveryQuoteInput } from "../src/providers/delivery/types";
 import { StubNotificationProvider } from "../src/providers/notification/stub";
@@ -36,9 +37,12 @@ describe("provider registry", () => {
     expect(getProviders(env).payment).toBeInstanceOf(PaystackProvider);
   });
 
-  test("selecting chowdeck or s3 with no adapter names the right file", () => {
+  test("selecting chowdeck builds the Chowdeck adapter from the key and base URL", () => {
     const d = loadEnv({ ...baseEnv, DELIVERY_PROVIDER: "chowdeck", CHOWDECK_API_KEY: "k", CHOWDECK_BASE_URL: "https://x" });
-    expect(() => getProviders(d)).toThrow(/src\/providers\/delivery\/chowdeck\.ts/);
+    expect(getProviders(d).delivery).toBeInstanceOf(ChowdeckProvider);
+  });
+
+  test("selecting s3 with no adapter names the right file", () => {
     const s = loadEnv({ ...baseEnv, STORAGE_PROVIDER: "s3", S3_ENDPOINT: "https://x", S3_BUCKET: "b", S3_ACCESS_KEY: "a", S3_SECRET_KEY: "s" });
     expect(() => getProviders(s)).toThrow(/src\/providers\/storage\/s3\.ts/);
   });
