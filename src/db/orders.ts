@@ -5,6 +5,7 @@ import { createOrderSchema, deliveryOrderSchema, type CreateDeliveryOrderInput, 
 import { openStatus } from "@/domain/hours";
 import type { CartInput } from "@/domain/checkout/cart";
 import { generatePublicCode } from "@/domain/orders/public-code";
+import type { PromoProblem } from "@/domain/promos/rules";
 import type { OrderStatus } from "@/domain/orders/statuses";
 import { IllegalTransitionError, OrderNotFoundError } from "@/domain/orders/transitions";
 import { isValidPickupSlot } from "@/domain/pickup/slots";
@@ -12,7 +13,8 @@ import { priceCart, type LineProblem } from "@/domain/pricing/price-cart";
 import { toPublicDelivery, toPublicDropoff, type PublicDelivery, type PublicDropoff, type PublicOrderItem } from "@/lib/sanitize";
 import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
 import { loadPricingItems } from "./menu";
-import { deliveries, orderContacts, orderItems, orders, profiles } from "./schema";
+import { lookupPromoForOrder } from "./promos";
+import { deliveries, orderContacts, orderItems, orders, profiles, promoRedemptions } from "./schema";
 import { transitionOrder } from "./transition-order";
 
 export type RejectionCode =
@@ -24,6 +26,7 @@ export type RejectionCode =
   | "invalid_slot"
   | "cart_problems"
   | "price_changed"
+  | "promo_invalid"
   | "profile_missing";
 
 /** The order cannot be placed as asked. `problems` names the cart lines at fault, for cart_problems. */
@@ -32,6 +35,8 @@ export class OrderRejectedError extends Error {
     readonly code: RejectionCode,
     message: string,
     readonly problems: LineProblem[] = [],
+    /** For promo_invalid: why the code cannot be used, in the vocabulary of promoText(). */
+    readonly promoReason?: PromoProblem,
   ) {
     super(message);
   }
@@ -53,7 +58,7 @@ const MAX_CODE_ATTEMPTS = 5;
 const findByToken = async (tx: Tx, profileId: string, token: string): Promise<OrderRow | undefined> =>
   (await tx.select().from(orders).where(and(eq(orders.profileId, profileId), eq(orders.checkoutToken, token))).limit(1))[0];
 
-type Common = { lines: CartInput; phone: string; notes?: string; expectedTotalMinor?: number; checkoutToken: string };
+type Common = { lines: CartInput; phone: string; notes?: string; promoCode?: string; expectedTotalMinor?: number; checkoutToken: string };
 type Mode =
   | { fulfilment: "pickup"; pickupAt: Date }
   | { fulfilment: "delivery"; deliveryFeeMinor: number; address: { zone: string; address: string; landmark?: string } };
@@ -82,8 +87,18 @@ async function placeOrder(
       if (!profile) throw new OrderRejectedError("profile_missing", "Your account has no profile");
 
       const items = await loadPricingItems(tx, [...new Set(input.lines.map((l) => l.itemId))]);
-      const priced = priceCart(input.lines, items, cfg.charges, mode.fulfilment === "delivery" ? mode.deliveryFeeMinor : 0);
-      if (!priced.ok) throw new OrderRejectedError("cart_problems", "Some items in your cart cannot be ordered", priced.problems);
+      let promo: Awaited<ReturnType<typeof lookupPromoForOrder>> | undefined;
+      if (input.promoCode) {
+        promo = await lookupPromoForOrder(tx, ctx.userId, input.promoCode, mode.fulfilment, cfg, now);
+        if (!promo.ok) throw new OrderRejectedError("promo_invalid", "That promo code cannot be used", [], promo.reason);
+      }
+      const priced = priceCart(input.lines, items, cfg.charges, mode.fulfilment === "delivery" ? mode.deliveryFeeMinor : 0, promo?.ok ? promo.promo : undefined);
+      if (!priced.ok) {
+        // A promo problem sits on the cart as a whole (index -1); everything else is about a line.
+        const forPromo = priced.problems.find((p) => p.code === "promo_below_minimum" || p.code === "promo_free_order");
+        if (forPromo) throw new OrderRejectedError("promo_invalid", "That promo code cannot be used on this order", [], forPromo.code === "promo_below_minimum" ? "below_minimum" : "free_order");
+        throw new OrderRejectedError("cart_problems", "Some items in your cart cannot be ordered", priced.problems);
+      }
 
       if (input.expectedTotalMinor !== undefined && input.expectedTotalMinor !== priced.totalMinor) {
         throw new OrderRejectedError("price_changed", "The prices changed while you were checking out. Please review your order");
@@ -104,6 +119,8 @@ async function placeOrder(
             subtotalMinor: priced.subtotalMinor,
             serviceChargeMinor: priced.serviceChargeMinor,
             taxMinor: priced.taxMinor,
+            discountMinor: priced.discountMinor,
+            promoId: promo?.ok ? promo.promo.id : null,
             deliveryFeeMinor: priced.deliveryFeeMinor,
             totalMinor: priced.totalMinor,
             currency: cfg.currency.code,
@@ -134,6 +151,9 @@ async function placeOrder(
         })),
       );
       await tx.insert(orderContacts).values({ orderId: order.id, phone: input.phone, ...(mode.fulfilment === "delivery" ? { addressSnapshot: mode.address } : {}) });
+      if (promo?.ok) {
+        await tx.insert(promoRedemptions).values({ promoId: promo.promo.id, orderId: order.id, profileId: ctx.userId, discountMinor: priced.discountMinor + priced.deliveryWaivedMinor });
+      }
       return { order, created: true };
     },
     { url: deps.appUrl },

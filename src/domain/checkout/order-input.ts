@@ -23,6 +23,13 @@ export const createOrderSchema = z.object({
     .max(200, "Keep notes to 200 characters")
     .optional()
     .transform((v) => v || undefined),
+  /** A promo code typed by the customer. The server looks it up and decides; the browser never sends a discount. */
+  promoCode: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .transform((v) => v || undefined),
   /** The total the customer was shown. If the real total differs now, the order is refused, not placed. */
   expectedTotalMinor: z.number().int().nonnegative().optional(),
   /** One per checkout screen load. A second submit with the same token returns the same order. */
@@ -48,6 +55,13 @@ export const deliveryOrderSchema = z.object({
     .string()
     .trim()
     .max(200, "Keep notes to 200 characters")
+    .optional()
+    .transform((v) => v || undefined),
+  /** A promo code typed by the customer. The server looks it up and decides; the browser never sends a discount. */
+  promoCode: z
+    .string()
+    .trim()
+    .max(40)
     .optional()
     .transform((v) => v || undefined),
   expectedTotalMinor: z.number().int().nonnegative().optional(),

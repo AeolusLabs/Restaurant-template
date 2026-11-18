@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getIdentity } from "@/auth/customer";
 import { OrderRejectedError, createDeliveryOrder, createPickupOrder } from "@/db/orders";
+import { promoText } from "@/domain/promos/rules";
 import { createOrderSchema, deliveryOrderSchema, type CreateDeliveryOrderInput, type CreateOrderInput } from "@/domain/checkout/order-input";
 import { echo, fieldErrors, text, type FormState } from "@/lib/form";
 import { HUMAN_CHECK_FAILED, passesHumanCheck } from "@/lib/human-check";
@@ -17,6 +18,7 @@ const REJECTIONS: Record<OrderRejectedError["code"], string> = {
   invalid_slot: "That pickup time is no longer available. Choose another.",
   cart_problems: "Some items in your cart can no longer be ordered. Go back to your cart to fix this.",
   price_changed: "The prices changed while you were checking out. Go back to your cart to review them.",
+  promo_invalid: "That promo code cannot be used.",
   profile_missing: "We could not find your account details. Please sign out and in again.",
 };
 
@@ -31,7 +33,7 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
   if (!identity) redirect("/sign-in?next=%2Fcheckout");
 
   const delivery = text(formData, "fulfilment") === "delivery";
-  const values = echo(formData, ["fulfilment", "pickupAt", "zone", "address", "landmark", "phone", "notes"]);
+  const values = echo(formData, ["fulfilment", "pickupAt", "zone", "address", "landmark", "promoCode", "phone", "notes"]);
   if (!(await passesHumanCheck(formData))) return { error: HUMAN_CHECK_FAILED, values };
   let lines: unknown;
   try {
@@ -44,6 +46,7 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
     lines,
     phone: text(formData, "phone"),
     notes: text(formData, "notes"),
+    promoCode: text(formData, "promoCode"),
     expectedTotalMinor: expected === "" ? undefined : Number(expected),
     checkoutToken: text(formData, "checkoutToken"),
   };
@@ -65,6 +68,7 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
   } catch (err) {
     if (err instanceof OrderRejectedError) {
       if (err.code === "invalid_slot") return { fieldErrors: { pickupAt: REJECTIONS.invalid_slot }, values };
+      if (err.code === "promo_invalid") return { fieldErrors: { promoCode: promoText(err.promoReason ?? "unknown") }, values };
       if (err.code === "invalid_zone") return { fieldErrors: { zone: REJECTIONS.invalid_zone }, values };
       return { error: REJECTIONS[err.code], values };
     }
