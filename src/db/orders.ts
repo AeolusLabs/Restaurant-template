@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { restaurantConfig } from "../../config/restaurant";
 import type { RestaurantConfig } from "../../config/schema";
 import { createOrderSchema, deliveryOrderSchema, type CreateDeliveryOrderInput, type CreateOrderInput } from "@/domain/checkout/order-input";
@@ -10,6 +10,7 @@ import type { OrderStatus } from "@/domain/orders/statuses";
 import { IllegalTransitionError, OrderNotFoundError } from "@/domain/orders/transitions";
 import { isValidPickupSlot } from "@/domain/pickup/slots";
 import { priceCart, type LineProblem } from "@/domain/pricing/price-cart";
+import { isValidSlug } from "@/lib/qr";
 import { toPublicDelivery, toPublicDropoff, type PublicDelivery, type PublicDropoff, type PublicOrderItem } from "@/lib/sanitize";
 import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
 import { loadPricingItems } from "./menu";
@@ -51,6 +52,8 @@ export type CreateOrderDeps = {
   appUrl?: string;
   /** Replaceable so a test can force a code collision. */
   code?: () => string;
+  /** The QR code slug the customer arrived by (from a cookie). Remembered on the order when it is a live source. */
+  sourceSlug?: string;
 };
 
 const MAX_CODE_ATTEMPTS = 5;
@@ -87,6 +90,9 @@ async function placeOrder(
       if (!profile) throw new OrderRejectedError("profile_missing", "Your account has no profile");
 
       const items = await loadPricingItems(tx, [...new Set(input.lines.map((l) => l.itemId))]);
+      // Which printed code brought the customer. Not being able to find it never stops an order.
+      const sourceId = deps.sourceSlug && isValidSlug(deps.sourceSlug) ? ((await tx.execute(sql`select qr_source_for_slug(${deps.sourceSlug}) as id`)).rows[0]?.id as string | null) ?? null : null;
+
       let promo: Awaited<ReturnType<typeof lookupPromoForOrder>> | undefined;
       if (input.promoCode) {
         promo = await lookupPromoForOrder(tx, ctx.userId, input.promoCode, mode.fulfilment, cfg, now);
@@ -122,6 +128,7 @@ async function placeOrder(
             discountMinor: priced.discountMinor,
             promoId: promo?.ok ? promo.promo.id : null,
             promoCode: promo?.ok ? promo.promo.code : null,
+            sourceId,
             deliveryFeeMinor: priced.deliveryFeeMinor,
             totalMinor: priced.totalMinor,
             currency: cfg.currency.code,

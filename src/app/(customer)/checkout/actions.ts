@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getIdentity } from "@/auth/customer";
 import { OrderRejectedError, createDeliveryOrder, createPickupOrder } from "@/db/orders";
@@ -8,6 +9,7 @@ import { createOrderSchema, deliveryOrderSchema, type CreateDeliveryOrderInput, 
 import { echo, fieldErrors, text, type FormState } from "@/lib/form";
 import { HUMAN_CHECK_FAILED, passesHumanCheck } from "@/lib/human-check";
 import { PaymentStartError, startPayment } from "@/payments/start-payment";
+import { QR_COOKIE } from "@/qr/scan";
 
 const REJECTIONS: Record<OrderRejectedError["code"], string> = {
   not_a_customer: "Only customer accounts can place orders. Sign in with a customer account.",
@@ -63,7 +65,11 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
 
   let code: string;
   try {
-    const placed = delivery ? await createDeliveryOrder(identity.ctx, parsed.data as CreateDeliveryOrderInput) : await createPickupOrder(identity.ctx, parsed.data as CreateOrderInput);
+    // The printed code that brought this customer, if they scanned one in the last 7 days.
+    const sourceSlug = (await cookies()).get(QR_COOKIE)?.value;
+    const placed = delivery
+      ? await createDeliveryOrder(identity.ctx, parsed.data as CreateDeliveryOrderInput, { sourceSlug })
+      : await createPickupOrder(identity.ctx, parsed.data as CreateOrderInput, { sourceSlug });
     code = placed.order.publicCode;
   } catch (err) {
     if (err instanceof OrderRejectedError) {
