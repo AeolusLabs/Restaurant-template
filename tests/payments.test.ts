@@ -182,9 +182,11 @@ describe("payment webhook", () => {
   });
 
   test("a signed body that is not valid JSON is refused with 400 and stores nothing", async () => {
-    const before = (await admin().query(`select count(*)::int as n from webhook_events`)).rows[0].n;
+    // Only this provider's events: other webhooks (delivery, WhatsApp) write to the same table from other test files.
+    const count = async () => (await admin().query(`select count(*)::int as n from webhook_events where provider = 'mock'`)).rows[0].n;
+    const before = await count();
     expect((await deliver("x", { body: "{not json" })).status).toBe(400);
-    expect((await admin().query(`select count(*)::int as n from webhook_events`)).rows[0].n).toBe(before);
+    expect(await count()).toBe(before);
   });
 
   test("a verified payment for the wrong amount does not pay the order, and is flagged for review", async () => {

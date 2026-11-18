@@ -1,4 +1,5 @@
 import { registerAgent, registerExecutor } from "./registry";
+import { escalateExecutor, replyExecutor, supportAgent } from "./support";
 import { winbackAgent, winbackExecutor } from "./winback";
 
 let done = false;
@@ -8,5 +9,8 @@ export function ensureAgentsRegistered(): void {
   if (done) return;
   registerAgent(winbackAgent);
   registerExecutor(winbackExecutor);
+  registerAgent(supportAgent);
+  registerExecutor(replyExecutor);
+  registerExecutor(escalateExecutor);
   done = true;
 }

@@ -60,12 +60,15 @@ export function fillTemplate(template: string, vars: Partial<Record<"name" | "di
 
 const LINKISH = /(https?:|www\.|:\/\/)|\b[\w-]+\.(com|ng|net|org|co|io|app|link|me|ly|example|xyz|info)\b/i;
 
+/** Whether text carries something a customer could tap: a web address, or a bare domain. */
+export const containsLink = (text: string): boolean => LINKISH.test(text);
+
 /** Checks a message template written by a model: sensible length, only known placeholders, and no links. */
 export function validateTemplate(text: string, allowed: readonly string[]): { ok: true } | { ok: false; reason: string } {
   if (text.length < 20) return { ok: false, reason: "too short" };
   if (text.length > 320) return { ok: false, reason: "too long" };
   for (const m of text.matchAll(/\{([^}]*)\}/g)) if (!allowed.includes(m[1])) return { ok: false, reason: `unknown placeholder {${m[1]}}` };
-  if (LINKISH.test(text)) return { ok: false, reason: "contains a link" };
+  if (containsLink(text)) return { ok: false, reason: "contains a link" };
   return { ok: true };
 }
 

@@ -20,6 +20,11 @@ export function alertText(kind: string, payload: Record<string, unknown> = {}): 
     }
     case "wallet_low":
       return "The delivery wallet is running low. Top it up with the delivery provider so riders can still be booked.";
+    case "support_question": {
+      const q = typeof payload.question === "string" ? payload.question.slice(0, 200) : "";
+      const from = typeof payload.from === "string" ? payload.from : "a customer";
+      return `The WhatsApp assistant could not answer a question from ${from}${q ? `: "${q}"` : ""}. Reply to them yourself.`;
+    }
     default:
       return kind;
   }
