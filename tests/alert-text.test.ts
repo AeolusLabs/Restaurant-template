@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { alertText } from "../src/domain/alerts/text";
 
-const KINDS = ["payment_mismatch", "payment_late", "payment_duplicate", "refund_failed", "delivery_failed", "wallet_low", "support_question"];
+const KINDS = ["payment_mismatch", "payment_late", "payment_duplicate", "refund_failed", "delivery_failed", "wallet_low", "support_question", "delivery_stuck", "anomaly"];
 
 describe("alertText", () => {
   test("every kind of alert is explained in words and says what to do, never shown as its code", () => {

@@ -1,3 +1,5 @@
+import { alertExecutor, archiveExecutor, blockExecutor, noteExecutor } from "./ops-executors";
+import { anomalyAgent, demandAgent, menuAgent, watchdogAgent } from "./ops-agents";
 import { registerAgent, registerExecutor } from "./registry";
 import { escalateExecutor, replyExecutor, supportAgent } from "./support";
 import { winbackAgent, winbackExecutor } from "./winback";
@@ -12,5 +14,13 @@ export function ensureAgentsRegistered(): void {
   registerAgent(supportAgent);
   registerExecutor(replyExecutor);
   registerExecutor(escalateExecutor);
+  registerAgent(demandAgent);
+  registerAgent(menuAgent);
+  registerAgent(watchdogAgent);
+  registerAgent(anomalyAgent);
+  registerExecutor(noteExecutor);
+  registerExecutor(archiveExecutor);
+  registerExecutor(alertExecutor);
+  registerExecutor(blockExecutor);
   done = true;
 }

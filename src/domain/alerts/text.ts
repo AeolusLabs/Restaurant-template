@@ -20,6 +20,13 @@ export function alertText(kind: string, payload: Record<string, unknown> = {}): 
     }
     case "wallet_low":
       return "The delivery wallet is running low. Top it up with the delivery provider so riders can still be booked.";
+    case "delivery_stuck": {
+      const detail = typeof payload.detail === "string" ? payload.detail : "A delivery looks stuck";
+      const code = typeof payload.orderCode === "string" ? ` (order ${payload.orderCode})` : "";
+      return `${detail}${code}. Open the order and check the delivery, or call the rider.`;
+    }
+    case "anomaly":
+      return `An agent noticed something unusual: ${typeof payload.detail === "string" ? payload.detail : "see the order or customer"}. Take a look.`;
     case "support_question": {
       const q = typeof payload.question === "string" ? payload.question.slice(0, 200) : "";
       const from = typeof payload.from === "string" ? payload.from : "a customer";
