@@ -40,6 +40,7 @@ async function Checkout() {
     <CheckoutForm
       days={days}
       zones={zones}
+      promosEnabled={c.features.promos}
       defaultPhone={profile?.phone ?? ""}
       // One token per page load: a double tap on Pay returns the same order instead of making two.
       checkoutToken={randomUUID().replaceAll("-", "")}

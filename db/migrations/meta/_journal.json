@@ -155,6 +155,13 @@
       "when": 1794964726810,
       "tag": "0021_phase5_promo_value_check",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794964949998,
+      "tag": "0022_phase5_order_promo_code",
+      "breakpoints": true
     }
   ]
 }

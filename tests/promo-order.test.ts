@@ -63,7 +63,7 @@ describe("placing an order with a promo", () => {
     const p = await promo({ value: 1000 });
     const { order } = await createDeliveryOrder(await customer(), delivery({ promoCode: p.code }), deps());
     // items 200,000, 10% off = 20,000; service 5% of 180,000 = 9,000; tax 7.5% of 189,000 = 14,175; plus 150,000 delivery.
-    expect(order).toMatchObject({ subtotalMinor: 200_000, discountMinor: 20_000, serviceChargeMinor: 9_000, taxMinor: 14_175, deliveryFeeMinor: 150_000, totalMinor: 353_175, promoId: p.id });
+    expect(order).toMatchObject({ subtotalMinor: 200_000, discountMinor: 20_000, serviceChargeMinor: 9_000, taxMinor: 14_175, deliveryFeeMinor: 150_000, totalMinor: 353_175, promoId: p.id, promoCode: p.code });
     const rows = await redemptions(p.id);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ order_id: order.id, d: 20_000, released_at: null });

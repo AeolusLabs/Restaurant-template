@@ -55,13 +55,15 @@ export function applyPromo(terms: PromoTerms, subtotalMinor: number, deliveryFee
   return { ok: true, itemDiscountMinor: Math.min(capped, subtotalMinor), deliveryWaivedMinor: 0 };
 }
 
-export type PromoProblem = PromoRejection | "unknown" | "below_minimum" | "disabled" | "free_order";
+export type PromoProblem = PromoRejection | "unknown" | "below_minimum" | "disabled" | "free_order" | "signed_out";
 
 /** What to tell the customer when a code cannot be used. `min` is the formatted minimum order, when there is one. */
 export function promoText(reason: PromoProblem, extra: { min?: string } = {}): string {
   switch (reason) {
     case "unknown":
       return "We do not recognise that code. Check it and try again.";
+    case "signed_out":
+      return "Sign in to use a promo code.";
     case "disabled":
       return "Promo codes are not available right now.";
     case "inactive":

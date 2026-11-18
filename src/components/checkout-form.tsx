@@ -19,6 +19,8 @@ type Props = {
   defaultPhone: string;
   checkoutToken: string;
   address: string;
+  /** Whether promo codes are on, so the code field is shown. */
+  promosEnabled: boolean;
 };
 
 function PayButton({ totalMinor, disabled }: { totalMinor: number | null; disabled: boolean }) {
@@ -35,7 +37,7 @@ const choice =
   "flex min-h-11 flex-1 cursor-pointer items-center gap-3 rounded-lg border border-line-strong bg-surface px-4 py-2 font-semibold " +
   "has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand";
 
-export function CheckoutForm({ days, zones, defaultPhone, checkoutToken, address }: Props) {
+export function CheckoutForm({ days, zones, defaultPhone, checkoutToken, address, promosEnabled }: Props) {
   const { lines } = useCart();
   const [state, action] = useActionState(placeOrderAction, undefined);
   const fe = state?.fieldErrors ?? {};
@@ -45,7 +47,10 @@ export function CheckoutForm({ days, zones, defaultPhone, checkoutToken, address
   const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">(canPickUp ? "pickup" : "delivery");
   const [zone, setZone] = useState("");
   const delivering = fulfilment === "delivery";
-  const { quote, loading } = useQuote(lines, delivering && zone ? zone : undefined);
+  // What the customer has typed, and the code they asked us to apply. The server prices the applied one.
+  const [promoText, setPromoText] = useState("");
+  const [appliedCode, setAppliedCode] = useState("");
+  const { quote, loading } = useQuote(lines, { zone: delivering && zone ? zone : undefined, fulfilment, promoCode: promosEnabled && appliedCode ? appliedCode : undefined });
   const money = useMoney();
 
   if (lines.length === 0) {
@@ -69,6 +74,7 @@ export function CheckoutForm({ days, zones, defaultPhone, checkoutToken, address
       <input type="hidden" name="lines" value={JSON.stringify(lines)} />
       <input type="hidden" name="checkoutToken" value={checkoutToken} />
       <input type="hidden" name="fulfilment" value={fulfilment} />
+      <input type="hidden" name="promoCode" value={quote?.ok && quote.promo ? quote.promo.code : ""} />
       <input type="hidden" name="expectedTotalMinor" value={ready ? quote.totalMinor : ""} />
 
       <section aria-labelledby="summary" className={`${card} space-y-4 p-4`}>
@@ -88,7 +94,7 @@ export function CheckoutForm({ days, zones, defaultPhone, checkoutToken, address
                 </li>
               ))}
             </ul>
-            <OrderTotals {...quote} />
+            <OrderTotals {...quote} promoCode={quote.promo?.code} freeDelivery={quote.deliveryWaivedMinor > 0} />
             {delivering && zone === "" && (
               <p className="text-sm text-muted" role="status">
                 Choose your area below to see the delivery fee.
@@ -224,6 +230,61 @@ export function CheckoutForm({ days, zones, defaultPhone, checkoutToken, address
             {fe.pickupAt && (
               <p id="pickupAt-error" className="mt-1 text-sm text-bad" role="alert">
                 {fe.pickupAt}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {promosEnabled && (
+        <section aria-labelledby="promo-h" className="space-y-2">
+          <h2 id="promo-h" className="text-lg font-bold">
+            Promo code <span className="font-normal text-muted">(optional)</span>
+          </h2>
+          <div className="flex gap-2">
+            <input
+              id="promo"
+              aria-label="Promo code"
+              value={promoText}
+              onChange={(e) => setPromoText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setAppliedCode(promoText.trim());
+                }
+              }}
+              maxLength={40}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              className={field}
+              aria-describedby="promo-status"
+            />
+            <button type="button" className={button.secondary} onClick={() => setAppliedCode(promoText.trim())} disabled={promoText.trim() === ""}>
+              Apply
+            </button>
+          </div>
+          <div id="promo-status" aria-live="polite" className="text-sm">
+            {quote?.ok && quote.promo && (
+              <p className="text-ok">
+                Code {quote.promo.code} applied
+                {quote.deliveryWaivedMinor > 0 ? ": delivery is free." : `: you save ${money(quote.discountMinor)}.`}{" "}
+                <button
+                  type="button"
+                  className="font-semibold underline underline-offset-4"
+                  onClick={() => {
+                    setAppliedCode("");
+                    setPromoText("");
+                  }}
+                >
+                  Remove
+                </button>
+              </p>
+            )}
+            {quote?.ok && quote.promoError && <p className="text-bad">{quote.promoError}</p>}
+            {fe.promoCode && (
+              <p className="text-bad" role="alert">
+                {fe.promoCode}
               </p>
             )}
           </div>

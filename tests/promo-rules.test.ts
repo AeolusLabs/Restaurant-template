@@ -84,7 +84,7 @@ describe("applyPromo", () => {
 
 describe("promoText", () => {
   test("every reason has plain wording with no exclamation marks or dashes", () => {
-    for (const r of ["unknown", "inactive", "not_started", "expired", "used_up", "already_used", "delivery_only", "below_minimum", "disabled", "free_order"] as const) {
+    for (const r of ["unknown", "inactive", "not_started", "expired", "used_up", "already_used", "delivery_only", "below_minimum", "disabled", "free_order", "signed_out"] as const) {
       const t = promoText(r);
       expect(t.length, r).toBeGreaterThan(10);
       expect(t, r).not.toMatch(/[!]|—|--/);

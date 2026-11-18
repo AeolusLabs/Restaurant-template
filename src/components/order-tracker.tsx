@@ -169,6 +169,9 @@ export function OrderTracker({ initial, pickupLabel, holdUntilLabel, address, ch
             serviceChargeMinor={order.serviceChargeMinor}
             taxMinor={order.taxMinor}
             deliveryFeeMinor={order.deliveryFeeMinor}
+            discountMinor={order.discountMinor}
+            promoCode={order.promoCode}
+            freeDelivery={delivering && order.deliveryFeeMinor === 0 && !!order.promoCode}
             totalMinor={order.totalMinor}
             charges={charges}
           />

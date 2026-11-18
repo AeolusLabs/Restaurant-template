@@ -49,6 +49,8 @@ export type PublicOrder = {
   taxMinor: number;
   deliveryFeeMinor: number;
   totalMinor: number;
+  /** The promo code used, if any. */
+  promoCode: string | null;
   currency: string;
   notes: string | null;
   placedAt: string;
@@ -89,6 +91,7 @@ export function toPublicOrder(
     taxMinor: num("taxMinor"),
     deliveryFeeMinor: num("deliveryFeeMinor"),
     totalMinor: num("totalMinor"),
+    promoCode: typeof r.promoCode === "string" ? r.promoCode : null,
     currency: text("currency"),
     notes: typeof r.notes === "string" ? r.notes : null,
     placedAt: iso(r.placedAt) ?? "",

@@ -286,7 +286,7 @@ describe("toPublicOrder", () => {
     expect(Object.keys(json).sort()).toEqual(
       [
         "currency", "delivery", "deliveryFeeMinor", "discountMinor", "dropoff", "expiresAt", "fulfilment", "items", "notes", "pickupAt", "placedAt",
-        "publicCode", "serviceChargeMinor", "status", "subtotalMinor", "taxMinor", "totalMinor",
+        "promoCode", "publicCode", "serviceChargeMinor", "status", "subtotalMinor", "taxMinor", "totalMinor",
       ].sort(),
     );
     expect(JSON.stringify(json)).not.toContain(ctx.userId);

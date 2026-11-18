@@ -27,6 +27,8 @@ export const orders = pgTable(
     currency: text("currency").notNull(),
     // Phase 6 adds the qr_sources table source_id points at.
     promoId: uuid("promo_id").references(() => promos.id),
+    // The code as it was when the order was placed, so the order can say which code it used without reading promos.
+    promoCode: text("promo_code"),
     sourceId: uuid("source_id"),
     resumeState: orderStatus("resume_state"),
     notes: text("notes"),

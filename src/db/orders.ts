@@ -121,6 +121,7 @@ async function placeOrder(
             taxMinor: priced.taxMinor,
             discountMinor: priced.discountMinor,
             promoId: promo?.ok ? promo.promo.id : null,
+            promoCode: promo?.ok ? promo.promo.code : null,
             deliveryFeeMinor: priced.deliveryFeeMinor,
             totalMinor: priced.totalMinor,
             currency: cfg.currency.code,

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { RestaurantConfig } from "../../config/schema";
 import { normalizeCode, promoRejection, type Promo, type PromoKind, type PromoProblem } from "@/domain/promos/rules";
-import type { Tx } from "./context";
+import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
 
 export type PromoRow = Promo & { id: string };
 
@@ -50,4 +50,20 @@ export async function lookupPromoForOrder(
   const used = (await tx.execute(sql`select total, mine from promo_usage(${promo.id}::uuid, ${profileId}::uuid)`)).rows[0] as { total: number; mine: number };
   const reason = promoRejection(promo, { now, usage: { total: Number(used.total), mine: Number(used.mine) }, fulfilment });
   return reason ? { ok: false, reason } : { ok: true, promo };
+}
+
+/**
+ * Whether a typed code could be used by this customer now, for showing the discount before they pay. Nothing is
+ * recorded: the order itself checks again, under the lock, when it is placed.
+ */
+export async function previewPromo(
+  ctx: RequestContext | null,
+  rawCode: string,
+  fulfilment: "pickup" | "delivery",
+  cfg: Pick<RestaurantConfig, "features">,
+  now: Date,
+  opts?: ContextOptions,
+): Promise<PromoLookup> {
+  if (!ctx || ctx.role !== "customer") return { ok: false, reason: "signed_out" };
+  return withRequestContext(ctx, (tx) => lookupPromoForOrder(tx, ctx.userId, rawCode, fulfilment, cfg, now), opts);
 }
