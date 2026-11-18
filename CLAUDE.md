@@ -56,7 +56,7 @@ First run: copy `.env.example` to `.env`, then in one terminal `pnpm db:local` (
 pnpm db:local       start the local PostgreSQL 18 (keep it running)
 pnpm setup          bootstrap roles, migrate, seed (idempotent, safe to re-run)
 pnpm dev            the web app
-pnpm worker         the job loop (unpaid-order expiry); run it beside the web app
+pnpm worker         the job loop (unpaid-order expiry, and with delivery on: rider booking, delivery status, wallet check); run it beside the web app
 pnpm db:bootstrap   create the migrator, app and system roles and the database
 pnpm db:migrate     apply pending migrations
 pnpm db:seed        seed the small menu, and the first owner if INITIAL_OWNER_* are set

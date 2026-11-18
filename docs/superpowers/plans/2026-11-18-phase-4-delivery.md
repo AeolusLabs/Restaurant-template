@@ -37,16 +37,16 @@ Used as the adapter's contract. Everything marked "unknown" is handled defensive
 
 ## Tasks
 
-- [ ] **T1 Config and pricing.** `delivery.lowWalletMinor`; `priceCart` takes a delivery fee (added after tax, never taxed).
-- [ ] **T2 Delivery orders.** `createDeliveryOrder` (zone, address, open-hours check, fee from config, contact snapshot).
-- [ ] **T3 Tables.** `deliveries` and `wallet_snapshots` with RLS (migrations); `raiseAlert` allows no order.
-- [ ] **T4 Dispatch.** Queue deliveries for orders at `dispatchOn`, book with a fresh quote, retry with backoff, fail loudly.
-- [ ] **T5 Status sync.** Apply provider status to the delivery row and the order (poll and webhook share one function).
-- [ ] **T6 Resolution.** Retry a failed delivery; cancel (with rider cancel and refund).
-- [ ] **T7 Wallet check.** Snapshot, low-balance alert, self-closing.
-- [ ] **T8 Chowdeck adapter** from the documented contract, contract-tested against a fake `fetch`, plus the delivery webhook route.
-- [ ] **T9 Screens.** Checkout delivery option, customer tracking steps and rider link, kitchen and admin delivery details and actions, alerts text, wallet on the admin home.
-- [ ] **T10 Worker jobs, docs, verification, completion status.**
+- [x] **T1 Config and pricing.** `delivery.lowWalletMinor`; `priceCart` takes a delivery fee (added after tax, never taxed).
+- [x] **T2 Delivery orders.** `createDeliveryOrder` (zone, address, open-hours check, fee from config, contact snapshot).
+- [x] **T3 Tables.** `deliveries` and `wallet_snapshots` with RLS (migrations); `raiseAlert` allows no order.
+- [x] **T4 Dispatch.** Queue deliveries for orders at `dispatchOn`, book with a fresh quote, retry with backoff, fail loudly.
+- [x] **T5 Status sync.** Apply provider status to the delivery row and the order (poll and webhook share one function).
+- [x] **T6 Resolution.** Retry a failed delivery; cancel (with rider cancel and refund).
+- [x] **T7 Wallet check.** Snapshot, low-balance alert, self-closing.
+- [x] **T8 Chowdeck adapter** from the documented contract, contract-tested against a fake `fetch`, plus the delivery webhook route.
+- [x] **T9 Screens.** Checkout delivery option, customer tracking steps and rider link, kitchen and admin delivery details and actions, alerts text, wallet on the admin home.
+- [x] **T10 Worker jobs, docs, verification, completion status.**
 
 ## Review focus
 

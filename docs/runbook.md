@@ -97,3 +97,15 @@ Restore rehearsal, once before launch and after any change to how data is stored
 4. **First owner.** Set `INITIAL_OWNER_EMAIL` and `INITIAL_OWNER_PASSWORD` for the first `pnpm db:seed`, sign in, add the manager and kitchen accounts from Staff, then remove the variables.
 5. **Refund path with a Paystack test key.** Pay a test order, cancel it from the admin, and confirm the refund appears in the Paystack dashboard and the order shows Refunded.
 6. **Alerts.** Anything on the admin home under "Needs attention" is money or an order that needs a person. Check it at the start and end of each service.
+
+## 10. Phase 4 checks before taking delivery orders
+
+1. **Nothing here has run against Chowdeck.** The adapter follows Chowdeck's documentation, which disagrees with itself, and Chowdeck has no sandbox: live testing spends real wallet money. Do these in order, with a small wallet balance. **verify**
+2. **Base URL.** Set `CHOWDECK_API_KEY` and call the wallet balance endpoint on `https://api.chowdeck.com` and on `https://api.relay.chowdeck.com`. Use the host that answers as `CHOWDECK_BASE_URL`.
+3. **One real booking.** Place a delivery order to an address you control, accept it, and watch the worker log for `dispatch-deliveries`. Check the booking in Chowdeck's dashboard. Confirm: `item_type` and `country_code` are accepted (change `itemType` and `countryCode` in `src/providers/index.ts` if not), the reference we send is the one Chowdeck returns, and each status word the rider goes through appears on the order page.
+4. **Empty wallet.** Note the exact error Chowdeck returns when the wallet cannot cover a booking and tell us: the adapter recognises "insufficient", "wallet", "balance" and HTTP 402, and anything else is treated as a plain failure (still retried, then `delivery_failed`, but without the low-wallet alert).
+5. **Webhooks.** If Chowdeck gives you a webhook secret, set `CHOWDECK_WEBHOOK_SECRET` and point the webhook at `/api/webhooks/delivery`. Without it every webhook is refused (401) and polling carries on alone, which is fine.
+6. **The failure drill.** With `DELIVERY_PROVIDER=mock`, empty the wallet (or stop the worker) and confirm: an order that cannot be booked becomes `delivery_failed` after five attempts, the admin home shows the alert, Retry books a new rider, and Cancel and refund returns the money.
+7. **Wallet alert.** Set `delivery.lowWalletMinor` to what covers a day of deliveries. The admin home shows the balance and an alert when it falls below.
+8. **The worker must be running** (`pnpm worker`): it books riders, follows deliveries and checks the wallet. If it stops, paid delivery orders wait; nothing is lost.
+9. **The mock rider is in memory,** per process. With `DELIVERY_PROVIDER=mock` the web server and the worker do not share riders, so cancelling from the admin raises the "rider could not be cancelled" alert. That is the mock, not a bug.

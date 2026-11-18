@@ -271,7 +271,7 @@ Source: 19 pages of the Chowdeck docs, read on 2026-11-17. The docs contradict t
 
 | Item | What the docs say | Handling |
 |---|---|---|
-| **Base URL** | Conflict. Reference pages: `https://api.chowdeck.com`. Guides: `https://api.relay.chowdeck.com`. Same `/relay/...` paths. No page says which is current. | `CHOWDECK_BASE_URL` has no default. Needs one call to each host with a real key. **Blocker for Phase 4.** |
+| **Base URL** | Conflict. Reference pages: `https://api.chowdeck.com`. Guides: `https://api.relay.chowdeck.com`. Same `/relay/...` paths. No page says which is current. | `CHOWDECK_BASE_URL` has no default. Needs one call to each host with a real key. **Blocks going live with delivery** (the adapter is written, Phase 4). |
 | Auth | `Authorization: Bearer <secret key>` | |
 | Quote | `POST /relay/delivery/fee`, returns `data.id` (the fee ID) and `total_amount` | Re-quote at dispatch, never reuse the checkout quote |
 | Quote expiry | No duration documented. Create returns "This delivery fee has expired." | Detect that error and re-quote once |
@@ -405,7 +405,7 @@ Each phase ends with a stop for your approval.
 ## 19. Open decisions and blockers
 
 **Blocked on you or the client**
-1. **Chowdeck base URL.** One call to each host with a real key settles it. Blocks Phase 4.
+1. **Chowdeck base URL.** One call to each host with a real key settles it. The Phase 4 adapter is written and contract-tested against a fake `fetch`; this and the other Chowdeck unknowns (section 23) block going live with delivery.
 2. **Chowdeck webhook secret** location, and whether Relay deliveries fire webhooks. Polling is the fallback.
 3. **Railway access.** A Railway account and project, so Phase 1 can provision PG 18 and apply migrations.
 
@@ -473,3 +473,17 @@ Details and rulings are in `docs/phase-3-build-log.md`.
 - **Refunds** (`src/payments/refund.ts`): reserve a refund row (unique per payment), ask the provider, then mark the payment refunded and move the order to `refunded`. A refused refund raises an alert and can be retried.
 - **Realtime.** A trigger on `order_events` calls `pg_notify('order_events', ...)` (migration 0013). `listenTo()` in `src/db/context.ts` holds one session per web process, `StreamHub` fans messages out, `/api/stream/orders` streams them to signed-in staff with a 25 second heartbeat, and the kitchen board refetches `/api/staff/kitchen` on each message and every 10 seconds.
 - **Menu pictures** are stored through `StorageProvider` under random keys (`menu/<uuid>.<ext>`), checked by content (JPEG, PNG, WebP, up to 2 MB), and served by `/api/media/[...key]`, which accepts only keys of that shape.
+
+## 23. Phase 4 implementation notes
+
+Details and rulings are in `docs/phase-4-build-log.md`; the plan, with the Chowdeck contract it used, is `docs/superpowers/plans/2026-11-18-phase-4-delivery.md`.
+
+- **Delivery orders** (`createDeliveryOrder` in `src/db/orders.ts`): the customer picks a zone from `config.delivery.zones` and types an address. The fee comes from the zone, is added after tax and never taxed, and the browser never sends it. Allowed only while the restaurant is open.
+- **The delivery is a row** in `deliveries` (one per order, migrations 0014 to 0017, RLS: system writes, managers and owners read all, a customer reads their own, the kitchen none). It is a queue: `attempts`, `next_attempt_at` and `round` drive booking, so no queue library was needed.
+- **Booking** (`src/delivery/dispatch.ts`): when an order reaches `delivery.dispatchOn`, the worker queues a delivery and books it with a fresh quote (re-quoting once if it expired). Reference `<order code>-<round>-<attempt>`, so a booking that reached the provider but was not recorded is adopted rather than made twice. Five attempts with backoff of 1, 2, 4 and 8 minutes, then the order becomes `delivery_failed`, an alert is raised and a manager can act. An empty wallet raises one `wallet_low` alert and keeps trying.
+- **Status** (`src/delivery/sync.ts`, `webhook.ts`): polling is the primary source, the webhook (`/api/webhooks/delivery`, same signature and idempotency rules as payments) is a faster path. One function applies a status to the delivery and the order. Statuses never go backwards, `unknown` is never delivered, a rider's pickup before the kitchen says ready waits until it is, and the system is recorded as the actor.
+- **Resolution** (`src/delivery/resolve.ts`): a manager's retry puts the order back to its resume state, starts a new round, closes the alert and books again. Cancelling a delivery order also drops a queued booking or cancels the rider; if the provider cannot be reached the order is still cancelled and refunded, and an alert says to cancel the rider by hand.
+- **Wallet** (`src/delivery/wallet.ts`): the worker records the balance every 5 minutes (`wallet_snapshots`), raises one alert below `delivery.lowWalletMinor` and closes it when the balance recovers. If the provider cannot be read nothing changes.
+- **Chowdeck adapter** (`src/providers/delivery/chowdeck.ts`): built only from the documented contract, covered by contract tests against a fake `fetch`, **never run against the live API**. Unknowns: the base URL, the webhook secret and whether Relay fires webhooks, the wording of the empty-wallet error, the values of `item_type` and `country_code` (defaults `food` and `+234`), and whether the `reference` we send is the one returned.
+- **Screens:** checkout offers pickup or delivery; the order page shows delivery steps, the address, the rider's progress and a link to follow the rider; the admin order page shows the booking, fee against cost, the last problem and a Retry button; the kitchen board marks delivery tickets; the admin home shows the wallet.
+- **Worker jobs** (`src/jobs/index.ts`, only with `features.delivery`): `dispatch-deliveries` every 15 s, `sync-deliveries` every 30 s, `check-wallet` every 5 minutes. The worker runs every job once at start.
