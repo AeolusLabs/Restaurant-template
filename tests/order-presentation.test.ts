@@ -66,3 +66,13 @@ describe("isPayable", () => {
     }
   });
 });
+
+import { staffLabel } from "../src/domain/orders/presentation";
+describe("staffLabel", () => {
+  test("every status has a short label for staff screens", () => {
+    for (const s of ORDER_STATUSES) expect(staffLabel(s).length, s).toBeGreaterThan(2);
+    expect(staffLabel("paid")).toBe("New");
+    expect(staffLabel("placed")).toBe("Unpaid");
+    expect(staffLabel("picked_up")).toBe("Collected");
+  });
+});

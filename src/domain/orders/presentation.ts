@@ -88,3 +88,20 @@ export const isFinished = (status: OrderStatus): boolean => status === "complete
 export function isPayable(order: { status: OrderStatus; expiresAt: Date | null }, now: Date): boolean {
   return order.status === "placed" && (!order.expiresAt || order.expiresAt.getTime() > now.getTime());
 }
+
+const STAFF_LABEL: Record<OrderStatus, string> = {
+  placed: "Unpaid",
+  paid: "New",
+  accepted: "Accepted",
+  preparing: "Preparing",
+  ready: "Ready",
+  out_for_delivery: "Out for delivery",
+  picked_up: "Collected",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  delivery_failed: "Delivery failed",
+  refunded: "Refunded",
+};
+
+/** A short word for an order's status on staff screens: "New" means paid and waiting to be accepted. */
+export const staffLabel = (status: OrderStatus): string => STAFF_LABEL[status];
