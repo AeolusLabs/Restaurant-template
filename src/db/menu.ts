@@ -6,15 +6,15 @@ import { menuCategories, menuItems, modifierGroups, modifiers } from "./schema";
 // Read model for the customer site. Menu rows are public by design (RLS lets anyone read active ones),
 // so the storefront reads through withPublicContext. Everything here is a plain whitelist of columns.
 
-export type MenuItem = PricingItem & { slug: string; description: string | null; categoryId: string };
+export type MenuItem = PricingItem & { slug: string; description: string | null; categoryId: string; imageKey: string | null; sortOrder: number };
 export type MenuCategory = { id: string; slug: string; name: string; items: MenuItem[] };
 
-type Row = {
+export type Row = {
   item: typeof menuItems.$inferSelect;
   category: { id: string; slug: string; name: string };
 };
 
-async function readItems(tx: Tx, where: SQL | undefined): Promise<Row[]> {
+export async function readItems(tx: Tx, where: SQL | undefined): Promise<Row[]> {
   return tx
     .select({
       item: menuItems,
@@ -26,7 +26,7 @@ async function readItems(tx: Tx, where: SQL | undefined): Promise<Row[]> {
     .orderBy(asc(menuCategories.sortOrder), asc(menuCategories.name), asc(menuItems.sortOrder), asc(menuItems.name));
 }
 
-async function attachGroups(tx: Tx, rows: Row[]): Promise<MenuItem[]> {
+export async function attachGroups(tx: Tx, rows: Row[]): Promise<MenuItem[]> {
   if (rows.length === 0) return [];
   const groups = await tx
     .select()
@@ -63,6 +63,8 @@ async function attachGroups(tx: Tx, rows: Row[]): Promise<MenuItem[]> {
     active: item.active,
     available: item.available,
     categoryId: item.categoryId,
+    imageKey: item.imageKey,
+    sortOrder: item.sortOrder,
     groups: byItem.get(item.id) ?? [],
   }));
 }
