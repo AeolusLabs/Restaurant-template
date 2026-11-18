@@ -2,6 +2,8 @@ import { sql } from "drizzle-orm";
 import { index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { createdAt, id, minor, ts } from "./common";
 import { orders } from "./orders";
+import { profiles } from "./profiles";
+import { promos } from "./promos";
 
 export const auditLog = pgTable(
   "audit_log",
@@ -79,3 +81,28 @@ export const walletSnapshots = pgTable("wallet_snapshots", {
   balanceMinor: minor("balance_minor").notNull(),
   checkedAt: ts("checked_at").notNull().defaultNow(),
 });
+
+/**
+ * One row when an order is placed with a promo: who used it, on which order, and what it took off (the waived
+ * delivery fee for a free-delivery promo). It counts against the promo's limits until the order is cancelled
+ * while still unpaid, when released_at is set by a trigger.
+ */
+export const promoRedemptions = pgTable(
+  "promo_redemptions",
+  {
+    id: id(),
+    promoId: uuid("promo_id")
+      .notNull()
+      .references(() => promos.id, { onDelete: "restrict" }),
+    orderId: uuid("order_id")
+      .notNull()
+      .unique()
+      .references(() => orders.id, { onDelete: "restrict" }),
+    // Null once the customer has deleted their account: the redemption stays as a record of what the promo cost.
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "set null" }),
+    discountMinor: minor("discount_minor").notNull(),
+    createdAt: createdAt(),
+    releasedAt: ts("released_at"),
+  },
+  (t) => [index("promo_redemptions_promo_idx").on(t.promoId, t.profileId)],
+);

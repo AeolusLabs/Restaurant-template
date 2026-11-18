@@ -127,6 +127,34 @@
       "when": 1794962703616,
       "tag": "0017_phase4_delivery_round",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794964631524,
+      "tag": "0018_phase5_promos",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794964634999,
+      "tag": "0019_phase5_promos_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794964648892,
+      "tag": "0020_phase5_redemption_profile_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794964726810,
+      "tag": "0021_phase5_promo_value_check",
+      "breakpoints": true
     }
   ]
 }

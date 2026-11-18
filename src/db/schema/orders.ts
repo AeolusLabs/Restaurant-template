@@ -3,6 +3,7 @@ import { check, index, integer, jsonb, pgTable, primaryKey, text, unique, uuid }
 import { actorType, createdAt, fulfilment, id, minor, orderStatus, ts } from "./common";
 import { menuItems } from "./menu";
 import { profiles } from "./profiles";
+import { promos } from "./promos";
 
 export const orders = pgTable(
   "orders",
@@ -24,8 +25,8 @@ export const orders = pgTable(
     deliveryFeeMinor: minor("delivery_fee_minor").notNull().default(0),
     totalMinor: minor("total_minor").notNull(),
     currency: text("currency").notNull(),
-    // Phases 5 and 6 add the promos and qr_sources tables these point at.
-    promoId: uuid("promo_id"),
+    // Phase 6 adds the qr_sources table source_id points at.
+    promoId: uuid("promo_id").references(() => promos.id),
     sourceId: uuid("source_id"),
     resumeState: orderStatus("resume_state"),
     notes: text("notes"),

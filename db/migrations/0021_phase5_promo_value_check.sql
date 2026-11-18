@@ -1,0 +1,2 @@
+ALTER TABLE "promos" DROP CONSTRAINT "promos_value_check";--> statement-breakpoint
+ALTER TABLE "promos" ADD CONSTRAINT "promos_value_check" CHECK (("promos"."kind" = 'percent' and "promos"."value" is not null and "promos"."value" between 1 and 10000) or ("promos"."kind" = 'fixed' and "promos"."value" is not null and "promos"."value" > 0) or ("promos"."kind" = 'free_delivery' and "promos"."value" is null));
