@@ -5,7 +5,7 @@ import { closePools } from "../src/db/context";
 import { createDeliveryOrder, createPickupOrder } from "../src/db/orders";
 import { pickupSlots } from "../src/domain/pickup/slots";
 import { generateSlug } from "../src/lib/qr";
-import { QR_COOKIE, QR_COOKIE_MAX_AGE_SECONDS, recordScan } from "../src/qr/scan";
+import { QR_COOKIE, QR_COOKIE_MAX_AGE_SECONDS, isAutomatedVisit, recordScan } from "../src/qr/scan";
 import { admin, closeFixtures, makeUser } from "./helpers/fixtures";
 
 const urls = inject("dbUrls");
@@ -41,6 +41,22 @@ const lines = () => [{ itemId, quantity: 1, modifierIds: [] }]; // a function: t
 const delivery = () => ({ lines: lines(), zone: "Island", address: "12 Admiralty Way, Lekki", phone: "+234 803 000 0000", checkoutToken: `${tag}-d-${++n}` });
 const pickup = () => ({ lines: lines(), pickupAt: slot, phone: "+234 803 000 0000", checkoutToken: `${tag}-p-${++n}` });
 const scans = async (id: string) => (await admin().query(`select 1 from qr_scans where source_id = $1`, [id])).rowCount;
+
+describe("isAutomatedVisit", () => {
+  const h = (o: Record<string, string>) => new Headers(o);
+  test("prefetches, link previews and crawlers are not people scanning a code", () => {
+    expect(isAutomatedVisit(h({ "sec-purpose": "prefetch;prerender" }))).toBe(true);
+    expect(isAutomatedVisit(h({ purpose: "prefetch" }))).toBe(true);
+    expect(isAutomatedVisit(h({ "x-moz": "prefetch" }))).toBe(true);
+    expect(isAutomatedVisit(h({ "user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" }))).toBe(true);
+    expect(isAutomatedVisit(h({ "user-agent": "WhatsApp/2.23.20 A" }))).toBe(true);
+    expect(isAutomatedVisit(h({ "user-agent": "facebookexternalhit/1.1" }))).toBe(true);
+  });
+  test("an ordinary phone browser is counted", () => {
+    expect(isAutomatedVisit(h({ "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1" }))).toBe(false);
+    expect(isAutomatedVisit(h({}))).toBe(false);
+  });
+});
 
 describe("recordScan", () => {
   test("counts a visit to an active source, once each time, and says it was recorded", async () => {
