@@ -94,7 +94,7 @@ async function attempt(tx: Tx, id: string, provider: DeliveryProvider, cfg: Rest
   if (!d) return "skipped"; // another worker has it, or it is no longer due
 
   const [order] = await tx.select().from(orders).where(eq(orders.id, d.orderId));
-  if (!order || !LIVE.includes(order.status)) {
+  if (!order || ![...LIVE, "out_for_delivery"].includes(order.status)) {
     await tx.update(deliveries).set({ status: "cancelled", updatedAt: now, failureReason: "order is no longer active" }).where(eq(deliveries.id, d.id));
     return "cancelled";
   }
@@ -108,7 +108,7 @@ async function attempt(tx: Tx, id: string, provider: DeliveryProvider, cfg: Rest
   };
   const note = [where.landmark ? `Landmark: ${where.landmark}` : "", order.notes ?? ""].filter(Boolean).join(". ").slice(0, 200);
   const attemptNo = d.attempts + 1;
-  const reference = `${order.publicCode}-${attemptNo}`;
+  const reference = `${order.publicCode}-${d.round}-${attemptNo}`;
 
   try {
     let result: { created: DeliveryCreated; quoteId: string | null };

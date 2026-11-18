@@ -59,6 +59,8 @@ export const deliveries = pgTable(
     status: text("status").notNull().default("queued"),
     trackingUrl: text("tracking_url"),
     failureReason: text("failure_reason"),
+    // Booking attempts in this round. A manager's retry starts a new round, so its references never repeat an old one.
+    round: integer("round").notNull().default(1),
     attempts: integer("attempts").notNull().default(0),
     nextAttemptAt: ts("next_attempt_at").notNull().defaultNow(),
     createdAt: createdAt(),

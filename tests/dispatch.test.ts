@@ -200,7 +200,7 @@ describe("dispatchQueued", () => {
     await queueDeliveries(deps(p, [o.orderId]));
     // Simulate a crash after the provider accepted the booking: it knows the reference, our row does not.
     const q = await p.getQuote({ pickup: { name: "r", phone: "1", address: "a" }, dropoff: { name: "c", phone: "2", address: "b" } });
-    await p.createDelivery({ pickup: { name: "r", phone: "1", address: "a" }, dropoff: { name: "c", phone: "2", address: "b" }, quoteId: q.quoteId, reference: `${o.code}-1` });
+    await p.createDelivery({ pickup: { name: "r", phone: "1", address: "a" }, dropoff: { name: "c", phone: "2", address: "b" }, quoteId: q.quoteId, reference: `${o.code}-1-1` });
     await dispatchQueued(deps(p, [o.orderId]));
     expect(p.created.filter((r) => r.startsWith(o.code))).toHaveLength(1);
     const r = await row(o.orderId);

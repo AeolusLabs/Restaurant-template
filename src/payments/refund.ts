@@ -5,8 +5,10 @@ import { withRequestContext, withSystemContext, type RequestContext, type Tx } f
 import { orders, payments, refunds } from "@/db/schema";
 import { staffTransitionOrder } from "@/db/staff-actions";
 import { transitionOrder } from "@/db/transition-order";
+import { cancelDeliveryFor } from "@/delivery/resolve";
 import { OrderNotFoundError } from "@/domain/orders/transitions";
 import { providers } from "@/providers";
+import type { DeliveryProvider } from "@/providers/delivery/types";
 import type { PaymentProvider } from "@/providers/payment/types";
 
 export type RefundErrorCode = "not_refundable" | "no_payment" | "already_refunded" | "provider_failed";
@@ -22,7 +24,7 @@ export class RefundError extends Error {
 }
 
 export type RefundActor = { type: "staff"; ctx: RequestContext } | { type: "system" };
-export type RefundDeps = { provider?: PaymentProvider; systemUrl?: string; appUrl?: string; reason?: string };
+export type RefundDeps = { provider?: PaymentProvider; deliveryProvider?: DeliveryProvider; systemUrl?: string; appUrl?: string; reason?: string };
 
 const isUniqueViolation = (err: unknown) => (err as { cause?: { code?: string } })?.cause?.code === "23505";
 
@@ -98,13 +100,15 @@ export async function refundOrder(actor: RefundActor, publicCode: string, deps: 
 export async function cancelAndRefund(ctx: RequestContext, publicCode: string, deps: RefundDeps = {}): Promise<{ refunded: boolean }> {
   const current = await withRequestContext(
     ctx,
-    async (tx) => (await tx.select({ status: orders.status }).from(orders).where(eq(orders.publicCode, publicCode)).limit(1))[0],
+    async (tx) => (await tx.select({ id: orders.id, status: orders.status }).from(orders).where(eq(orders.publicCode, publicCode)).limit(1))[0],
     { url: deps.appUrl },
   );
   if (!current) throw new OrderNotFoundError("Order not found");
   if (current.status !== "cancelled") {
     await staffTransitionOrder(ctx, publicCode, "cancelled", { expectedFrom: current.status, ...(deps.reason ? { reason: deps.reason } : {}) }, { appUrl: deps.appUrl });
   }
+  // The customer must not wait on the delivery provider: the rider is cancelled after the order is.
+  await cancelDeliveryFor(current.id, publicCode, { provider: deps.deliveryProvider, systemUrl: deps.systemUrl });
   try {
     await refundOrder({ type: "staff", ctx }, publicCode, deps);
     return { refunded: true };
