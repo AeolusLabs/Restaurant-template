@@ -9,7 +9,8 @@ import { StubNotificationProvider } from "../src/providers/notification/stub";
 import { admin, closeFixtures } from "./helpers/fixtures";
 
 const urls = inject("dbUrls");
-const NOW = new Date("2033-06-15T12:00:00Z");
+// A clock before every other test file's, because the sweep that closes unanswered proposals is global: it must not reach theirs.
+const NOW = new Date("2020-06-15T12:00:00Z");
 const HOUR = 3_600_000;
 afterAll(async () => {
   await closePools();

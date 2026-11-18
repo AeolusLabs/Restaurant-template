@@ -3,7 +3,8 @@ import { restaurantConfig } from "../config/restaurant";
 import type { RestaurantConfig } from "../config/schema";
 import { decideProposal, runAgent } from "../src/agents/framework";
 import { ensureAgentsRegistered } from "../src/agents/index";
-import { SUPPORT_KEY } from "../src/agents/support";
+import { registerAgent } from "../src/agents/registry";
+import { supportAgent } from "../src/agents/support";
 import { buildFacts } from "../src/agents/support-facts";
 import { closePools, withSystemContext } from "../src/db/context";
 import { MockLLMProvider } from "../src/providers/llm/mock";
@@ -26,8 +27,11 @@ let notifications: StubNotificationProvider;
 const deps = (over: Record<string, unknown> = {}) => ({ systemUrl: urls.system, appUrl: urls.app, now: NOW, config: config(), llm, notifications, ...over });
 
 const tag = `AA Support ${Date.now().toString(36)}`;
+// Its own copy of the agent under a unique key, so no other test file shares its saved settings.
+const SUPPORT_KEY = `sup-${Date.now().toString(36)}`;
 beforeAll(async () => {
   ensureAgentsRegistered();
+  registerAgent({ ...supportAgent, key: SUPPORT_KEY });
   const cat = (await admin().query(`insert into menu_categories (slug, name, sort_order) values ($1, 'AA Support', -999) returning id`, [`${tag}-c`.replace(/ /g, "-")])).rows[0].id;
   const item = (name: string, price: number, active = true, available = true) =>
     admin().query(`insert into menu_items (category_id, slug, name, price_minor, active, available) values ($1, $2, $3, $4, $5, $6)`, [cat, `${tag}-${name}`.replace(/ /g, "-"), `${tag} ${name}`, price, active, available]);

@@ -76,7 +76,7 @@ export const winbackAgent: Agent<WinbackSettings, unknown> = {
         where p.role = 'customer' and p.blocked_at is null and p.deleted_at is null
           and l.last_paid is not null and l.last_paid < ${lapsedBefore.toISOString()}::timestamptz
           and (select c.withdrawn_at is null from consents c where c.profile_id = p.id and c.type = 'marketing' order by c.granted_at desc limit 1) is true
-          and not exists (select 1 from agent_proposals ap where ap.agent_key = ${WINBACK_KEY} and ap.dedupe_key = 'winback:' || p.id::text and ap.created_at > ${coolingSince.toISOString()}::timestamptz)
+          and not exists (select 1 from agent_proposals ap where ap.agent_key = ${ctx.agentKey} and ap.dedupe_key = 'winback:' || p.id::text and ap.created_at > ${coolingSince.toISOString()}::timestamptz)
         order by l.last_paid desc
         limit ${s.maxPerRun * 3}`);
       return rows

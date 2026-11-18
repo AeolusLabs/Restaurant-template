@@ -23,7 +23,7 @@ const MAX_PER_HOUR = 10;
  * event again so the provider's retry is processed. A message starts the support agent, which only proposes: nothing
  * is sent to the customer from here. What was stored is who and which message, not what they wrote.
  */
-export async function handleWhatsAppWebhook(rawBody: string, headers: Headers, deps: FrameworkDeps & { provider?: NotificationProvider } = {}): Promise<WhatsAppWebhookResult> {
+export async function handleWhatsAppWebhook(rawBody: string, headers: Headers, deps: FrameworkDeps & { provider?: NotificationProvider; /** For tests: the key the support agent is registered under. */ agentKey?: string } = {}): Promise<WhatsAppWebhookResult> {
   const config = deps.config ?? restaurantConfig;
   if (!config.features.ai_agents) return { status: 200, outcome: "agents_off" };
   ensureAgentsRegistered();
@@ -58,7 +58,7 @@ export async function handleWhatsAppWebhook(rawBody: string, headers: Headers, d
   if (decision.outcome !== "run") return { status: 200, outcome: decision.outcome };
 
   try {
-    await runAgent(SUPPORT_KEY, { trigger: "inbound", input: message }, deps);
+    await runAgent(deps.agentKey ?? SUPPORT_KEY, { trigger: "inbound", input: message }, deps);
   } catch (err) {
     await withSystemContext((tx) => tx.delete(webhookEvents).where(eq(webhookEvents.id, decision.id)), url);
     throw err;

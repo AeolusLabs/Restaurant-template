@@ -2,7 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, inject, test } from 
 import { restaurantConfig } from "../config/restaurant";
 import type { RestaurantConfig } from "../config/schema";
 import { ensureAgentsRegistered } from "../src/agents/index";
-import { SUPPORT_KEY } from "../src/agents/support";
+import { registerAgent } from "../src/agents/registry";
+import { supportAgent } from "../src/agents/support";
 import { handleWhatsAppWebhook } from "../src/agents/whatsapp-webhook";
 import { closePools } from "../src/db/context";
 import { MockLLMProvider } from "../src/providers/llm/mock";
@@ -18,9 +19,14 @@ const config = (agents = true): RestaurantConfig => ({
 });
 let provider: StubNotificationProvider;
 let llm: MockLLMProvider;
-const deps = (over: Record<string, unknown> = {}) => ({ provider, systemUrl: urls.system, appUrl: urls.app, now: NOW, config: config(), llm, notifications: provider, ...over });
+const deps = (over: Record<string, unknown> = {}) => ({ provider, systemUrl: urls.system, appUrl: urls.app, now: NOW, config: config(), llm, notifications: provider, agentKey: SUPPORT_KEY, ...over });
 
-beforeAll(() => ensureAgentsRegistered());
+// Its own copy of the agent under a unique key, so no other test file shares its saved settings.
+const SUPPORT_KEY = `wh-${Date.now().toString(36)}`;
+beforeAll(() => {
+  ensureAgentsRegistered();
+  registerAgent({ ...supportAgent, key: SUPPORT_KEY });
+});
 afterAll(async () => {
   await closePools();
   await closeFixtures();

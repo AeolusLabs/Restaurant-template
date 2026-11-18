@@ -16,6 +16,7 @@ const ADMIN_LINKS: readonly NavLink[] = [
   { href: "/admin/customers", label: "Customers", roles: ["owner", "manager"] },
   { href: "/admin/promos", label: "Promos", roles: ["owner", "manager"], feature: "promos" },
   { href: "/admin/qr", label: "QR codes", roles: ["owner", "manager"] },
+  { href: "/admin/agents", label: "Agents", roles: ["owner", "manager"], feature: "ai_agents" },
   { href: "/admin/staff", label: "Staff", roles: ["owner", "manager"] },
   { href: "/kitchen", label: "Kitchen screen", roles: ["owner", "manager", "kitchen"] },
 ];

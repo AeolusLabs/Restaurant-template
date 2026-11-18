@@ -21,6 +21,8 @@ export type ProposalDraft = {
 };
 
 export type AgentContext<S, I> = {
+  /** The key this agent is registered and saved under. */
+  agentKey: string;
   now: Date;
   config: RestaurantConfig;
   settings: S;

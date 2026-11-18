@@ -3,7 +3,8 @@ import { restaurantConfig } from "../config/restaurant";
 import type { RestaurantConfig } from "../config/schema";
 import { decideProposal, runAgent } from "../src/agents/framework";
 import { ensureAgentsRegistered } from "../src/agents/index";
-import { WINBACK_KEY } from "../src/agents/winback";
+import { registerAgent } from "../src/agents/registry";
+import { winbackAgent } from "../src/agents/winback";
 import { closePools } from "../src/db/context";
 import { MockLLMProvider } from "../src/providers/llm/mock";
 import { StubNotificationProvider } from "../src/providers/notification/stub";
@@ -18,7 +19,12 @@ let llm: MockLLMProvider;
 let notifications: StubNotificationProvider;
 const deps = (over: Record<string, unknown> = {}) => ({ systemUrl: urls.system, appUrl: urls.app, now: NOW, config: config(), llm, notifications, ...over });
 
-beforeAll(() => ensureAgentsRegistered());
+// Its own copy of the agent under a unique key, so no other test file shares its saved settings or its cooldowns.
+const WINBACK_KEY = `wb-${Date.now().toString(36)}`;
+beforeAll(() => {
+  ensureAgentsRegistered();
+  registerAgent({ ...winbackAgent, key: WINBACK_KEY });
+});
 afterAll(async () => {
   await closePools();
   await closeFixtures();

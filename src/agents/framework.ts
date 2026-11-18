@@ -99,6 +99,7 @@ export async function runAgent(key: string, options: { trigger: "schedule" | "ma
     const settings = agent.settingsSchema.parse({ ...(agent.defaultSettings as object), ...cfg.settings });
     const capMinor = cfg.monthlyCapMinor ?? config.agents.defaultMonthlyCapMinor;
     drafts = await agent.run({
+      agentKey: key,
       now,
       config,
       settings,
