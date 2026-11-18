@@ -162,6 +162,20 @@
       "when": 1794964949998,
       "tag": "0022_phase5_order_promo_code",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795006425237,
+      "tag": "0023_phase6_qr",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795006426567,
+      "tag": "0024_phase6_qr_rls",
+      "breakpoints": true
     }
   ]
 }
