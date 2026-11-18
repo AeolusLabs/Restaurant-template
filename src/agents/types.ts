@@ -41,6 +41,8 @@ export type Agent<S = unknown, I = unknown> = {
   defaultSettings: S;
   /** True when the agent is started by something arriving (a message), not by the clock. */
   reactive?: boolean;
+  /** How often the worker runs it, for an agent that runs on the clock. */
+  schedule?: { everyMs: number };
   run(ctx: AgentContext<S, I>): Promise<ProposalDraft[]>;
 };
 

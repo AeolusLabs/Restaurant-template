@@ -5,6 +5,8 @@ import { buildJobs } from "../src/jobs";
 
 const withDelivery = (on: boolean): RestaurantConfig => ({ ...restaurantConfig, features: { ...restaurantConfig.features, delivery: on } });
 
+const withAgents = (on: boolean): RestaurantConfig => ({ ...restaurantConfig, features: { ...restaurantConfig.features, ai_agents: on } });
+
 describe("buildJobs", () => {
   test("a restaurant without delivery runs only the order expiry job", () => {
     expect(buildJobs(withDelivery(false)).map((j) => j.name)).toEqual(["expire-unpaid"]);
@@ -20,5 +22,11 @@ describe("buildJobs", () => {
     expect(jobs["dispatch-deliveries"]).toBeLessThanOrEqual(30_000);
     expect(jobs["sync-deliveries"]).toBeLessThanOrEqual(60_000);
     expect(jobs["check-wallet"]).toBeLessThanOrEqual(15 * 60_000);
+  });
+
+  test("the agent runner is scheduled only when agents are switched on", () => {
+    expect(buildJobs(withAgents(false)).map((j) => j.name)).not.toContain("run-agents");
+    const job = buildJobs(withAgents(true)).find((j) => j.name === "run-agents");
+    expect(job?.everyMs).toBeLessThanOrEqual(10 * 60_000);
   });
 });

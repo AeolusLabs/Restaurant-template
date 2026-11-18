@@ -3,6 +3,7 @@ import type { RestaurantConfig } from "../../config/schema";
 import { dispatchQueued, queueDeliveries } from "@/delivery/dispatch";
 import { syncDeliveries } from "@/delivery/sync";
 import { checkWallet } from "@/delivery/wallet";
+import { runDueAgents } from "@/agents/schedule";
 import { expireUnpaidOrders } from "./expire-unpaid";
 import type { Job } from "./worker";
 
@@ -41,6 +42,17 @@ export function buildJobs(cfg: RestaurantConfig = restaurantConfig): Job[] {
       },
       { name: "check-wallet", everyMs: 5 * 60_000, run: () => checkWallet({ config: cfg }) },
     );
+  }
+  if (cfg.features.ai_agents) {
+    // Runs the agents that are due (a win-back run a day, say) and closes proposals nobody decided in time.
+    jobs.push({
+      name: "run-agents",
+      everyMs: 5 * 60_000,
+      run: async () => {
+        const r = await runDueAgents({ config: cfg });
+        if (r.ran.length || r.expired) console.log(`run-agents: ran ${r.ran.join(", ") || "nothing"}, ${r.expired} proposals expired`);
+      },
+    });
   }
   return jobs;
 }

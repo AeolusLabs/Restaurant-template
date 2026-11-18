@@ -127,7 +127,7 @@ export async function runAgent(key: string, options: { trigger: "schedule" | "ma
       const mode = effectiveMode(cfg.autonomy, d.customerFacing, cfg.autoConfirmed);
       const [row] = await tx
         .insert(agentProposals)
-        .values({ runId: run.id, agentKey: key, kind: d.kind, summary: d.summary.slice(0, 500), payload: d.payload as object, customerFacing: d.customerFacing, mode, dedupeKey: d.dedupeKey ?? null, expiresAt: d.expiresAt ?? new Date(now.getTime() + FOURTEEN_DAYS) })
+        .values({ runId: run.id, agentKey: key, kind: d.kind, summary: d.summary.slice(0, 500), payload: d.payload as object, customerFacing: d.customerFacing, mode, dedupeKey: d.dedupeKey ?? null, createdAt: now, expiresAt: d.expiresAt ?? new Date(now.getTime() + FOURTEEN_DAYS) })
         .onConflictDoNothing()
         .returning({ id: agentProposals.id });
       if (row) out.push({ id: row.id, mode });
