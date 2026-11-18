@@ -3,7 +3,7 @@ import { ForbiddenError } from "@/auth/session";
 import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
 import { alerts, auditLog, orders } from "./schema";
 
-export type AlertKind = "payment_mismatch" | "payment_late" | "payment_duplicate" | "refund_failed";
+export type AlertKind = "payment_mismatch" | "payment_late" | "payment_duplicate" | "refund_failed" | "delivery_failed" | "wallet_low";
 export type Alert = {
   id: string;
   kind: string;
@@ -16,7 +16,7 @@ export type Alert = {
 /** Raised inside a system transaction when something needs a person (money that could not be applied, for now). */
 export async function raiseAlert(
   tx: Tx,
-  alert: { kind: AlertKind; severity: "warning" | "critical"; orderId: string; payload: Record<string, unknown> },
+  alert: { kind: AlertKind; severity: "warning" | "critical"; orderId?: string; payload: Record<string, unknown> },
 ): Promise<void> {
   await tx.insert(alerts).values(alert);
 }
