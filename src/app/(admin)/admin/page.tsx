@@ -94,6 +94,14 @@ async function Home({ searchParams }: { searchParams: PageProps<"/admin">["searc
           <Link href="/admin/menu" className={button.secondary}>
             Menu
           </Link>
+          <Link href="/admin/customers" className={button.secondary}>
+            Customers
+          </Link>
+          {c.features.promos && (
+            <Link href="/admin/promos" className={button.secondary}>
+              Promos
+            </Link>
+          )}
           <Link href="/admin/staff" className={button.secondary}>
             Staff
           </Link>
