@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { parseAgentForm } from "../src/agents/settings-form";
+import { NUMERIC_AGENT_FIELDS } from "../src/agents/settings-fields";
 
 const env = { exponent: 2 };
 
@@ -53,5 +54,35 @@ describe("the support settings", () => {
   test("the notes are kept, trimmed, and limited to 500 characters", () => {
     expect(parseAgentForm("whatsapp-support", { autonomy: "suggest_only", cap: "", extraNotes: "  Closed on public holidays.  " }, env)).toMatchObject({ value: { settings: { extraNotes: "Closed on public holidays." } } });
     expect(parseAgentForm("whatsapp-support", { autonomy: "suggest_only", cap: "", extraNotes: "x".repeat(501) }, env)).toMatchObject({ ok: false, errors: { extraNotes: expect.any(String) } });
+  });
+});
+
+describe("the operations agents' settings", () => {
+  const common = { enabled: "on", autonomy: "suggest_only", cap: "" };
+
+  test("every numeric setting of every operations agent is read as a whole number inside its range", () => {
+    for (const [key, fields] of Object.entries(NUMERIC_AGENT_FIELDS)) {
+      const good = Object.fromEntries(fields.map((f) => [f.key, String(f.default)]));
+      expect(parseAgentForm(key, { ...common, ...good }, env), key).toMatchObject({ ok: true, value: { settings: Object.fromEntries(fields.map((f) => [f.key, f.default])) } });
+      for (const f of fields) {
+        for (const bad of [String(f.min - 1), String(f.max + 1), "abc", "", "1.5", "-3"]) {
+          const r = parseAgentForm(key, { ...common, ...good, [f.key]: bad }, env);
+          expect(r, `${key}.${f.key}=${bad}`).toMatchObject({ ok: false, errors: { [f.key]: expect.any(String) } });
+        }
+        expect(parseAgentForm(key, { ...common, ...good, [f.key]: String(f.min) }, env)).toMatchObject({ ok: true });
+        expect(parseAgentForm(key, { ...common, ...good, [f.key]: String(f.max) }, env)).toMatchObject({ ok: true });
+      }
+    }
+  });
+
+  test("the message beside a box says what the range is", () => {
+    const r = parseAgentForm("menu-engineer", { ...common, quietDays: "3", maxPerRun: "5" }, env);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.quietDays).toMatch(/14.*365/);
+  });
+
+  test("there are four of them, and each has at least one setting", () => {
+    expect(Object.keys(NUMERIC_AGENT_FIELDS).sort()).toEqual(["anomaly-detector", "delivery-watchdog", "demand-planner", "menu-engineer"]);
+    for (const f of Object.values(NUMERIC_AGENT_FIELDS)) expect(f.length).toBeGreaterThan(0);
   });
 });

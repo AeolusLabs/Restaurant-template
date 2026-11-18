@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { restaurantConfig as c } from "../../../../../../config/restaurant";
 import { agentOverview, listRuns } from "@/agents/admin";
 import { ensureAgentsRegistered } from "@/agents/index";
+import { NUMERIC_AGENT_FIELDS } from "@/agents/settings-fields";
 import { WINBACK_KEY } from "@/agents/winback";
 import { SUPPORT_KEY } from "@/agents/support";
 import { requireStaff } from "@/auth/customer";
@@ -115,6 +116,18 @@ async function Settings({ params, searchParams }: { params: PageProps<"/admin/ag
             </>
           )}
 
+          {(NUMERIC_AGENT_FIELDS[a.key] ?? []).map((f) => (
+            <div key={f.key}>
+              <label htmlFor={f.key} className={label}>
+                {f.label}
+              </label>
+              <input id={f.key} name={f.key} defaultValue={val(f.key, String(s[f.key] ?? f.default))} inputMode="numeric" className={field} aria-describedby={`${f.key}-help`} />
+              <p id={`${f.key}-help`} className={hint}>
+                {f.help}
+              </p>
+            </div>
+          ))}
+
           {a.key === SUPPORT_KEY && (
             <div>
               <label htmlFor="extraNotes" className={label}>
@@ -138,7 +151,7 @@ async function Settings({ params, searchParams }: { params: PageProps<"/admin/ag
         <form action={runAgentNowAction} className={`${card} space-y-2 p-4`}>
           <input type="hidden" name="key" value={a.key} />
           <h2 className="text-lg font-bold">Run it now</h2>
-          <p className="text-sm text-muted">It runs on its own once a day. Running it now only adds suggestions to the queue; nothing is sent.</p>
+          <p className="text-sm text-muted">It also runs on its own on a schedule. Running it now only adds suggestions to the queue; nothing is sent or changed until someone approves.</p>
           <button type="submit" className={button.secondary} disabled={!a.enabled}>
             Run now
           </button>

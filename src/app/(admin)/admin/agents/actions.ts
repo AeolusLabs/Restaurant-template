@@ -5,6 +5,7 @@ import { AgentConfigError, saveAgentConfig, setAutoConfirmation } from "@/agents
 import { ProposalNotDecidableError, decideProposal, runAgent } from "@/agents/framework";
 import { ensureAgentsRegistered } from "@/agents/index";
 import { UnknownAgentError, listAgents } from "@/agents/registry";
+import { NUMERIC_AGENT_FIELDS } from "@/agents/settings-fields";
 import { parseAgentForm } from "@/agents/settings-form";
 import { requireStaff } from "@/auth/customer";
 import { ForbiddenError } from "@/auth/session";
@@ -15,8 +16,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LIST = "/admin/agents";
 const QUEUE = "/admin/agents/proposals";
 
-const FIELDS = ["enabled", "autonomy", "cap", "lapsedDays", "cooldownDays", "maxPerRun", "promoCode", "extraNotes"] as const;
+const NUMERIC = Object.values(NUMERIC_AGENT_FIELDS).flat();
+const FIELDS = [...new Set(["enabled", "autonomy", "cap", "lapsedDays", "cooldownDays", "maxPerRun", "promoCode", "extraNotes", ...NUMERIC.map((f) => f.key)])];
 const LABEL: Record<string, string> = {
+  ...Object.fromEntries(NUMERIC.map((f) => [f.key, f.label])),
   autonomy: "How much it may do",
   cap: "Monthly spending limit",
   lapsedDays: "Days quiet",

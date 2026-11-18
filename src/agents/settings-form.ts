@@ -1,5 +1,6 @@
 import { parseMoneyInput } from "../lib/money";
 import { normalizeCode } from "@/domain/promos/rules";
+import { NUMERIC_AGENT_FIELDS } from "./settings-fields";
 import { SUPPORT_KEY, supportSettings } from "./support";
 import { WINBACK_KEY, winbackSettings } from "./winback";
 
@@ -58,6 +59,12 @@ export function parseAgentForm(agentKey: string, raw: Record<string, string | un
   } else if (agentKey === SUPPORT_KEY) {
     settings = { extraNotes: text("extraNotes") };
     if (!supportSettings.safeParse(settings).success) errors.extraNotes = "Keep the notes to 500 characters";
+  } else if (NUMERIC_AGENT_FIELDS[agentKey]) {
+    for (const f of NUMERIC_AGENT_FIELDS[agentKey]) {
+      const n = INT.test(text(f.key)) ? Number(text(f.key)) : NaN;
+      if (!(n >= f.min && n <= f.max)) errors[f.key] = `${f.label} must be a whole number from ${f.min} to ${f.max}`;
+      else settings[f.key] = n;
+    }
   } else {
     throw new Error(`No settings form for agent ${agentKey}`);
   }
