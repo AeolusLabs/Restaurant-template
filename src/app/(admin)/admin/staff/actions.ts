@@ -4,7 +4,7 @@ import { APIError } from "better-auth/api";
 import { ZodError } from "zod";
 import { requireStaff } from "@/auth/customer";
 import { ForbiddenError } from "@/auth/session";
-import { blockStaff, changeStaffRole, createStaffUser, sendStaffPasswordReset, unblockStaff } from "@/auth/staff";
+import { DuplicateAccountError, blockStaff, changeStaffRole, createStaffUser, sendStaffPasswordReset, unblockStaff } from "@/auth/staff";
 import type { RequestContext } from "@/db/context";
 import { text } from "@/lib/form";
 import { redirectWith } from "@/lib/notice";
@@ -18,7 +18,7 @@ function describe(err: unknown): string {
     const field = String(err.issues[0]?.path[0] ?? "");
     return field === "email" ? "Enter a valid email address." : field === "temporaryPassword" ? "The temporary password needs at least 8 characters." : field === "name" ? "Enter a name." : "Check the details and try again.";
   }
-  if (err instanceof APIError) return "An account with that email already exists.";
+  if (err instanceof DuplicateAccountError || err instanceof APIError) return "An account with that email already exists.";
   throw err;
 }
 

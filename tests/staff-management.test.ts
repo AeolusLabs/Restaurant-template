@@ -117,6 +117,22 @@ describe("sendStaffPasswordReset", () => {
   });
 });
 
+describe("createStaffUser does not sign anyone in", () => {
+  test("no session is started for the new account, so the owner's own session is never replaced", async () => {
+    const owner = await account("owner");
+    const address = `nosession+${stamp}@example.com`;
+    const { userId } = await createStaffUser(owner.ctx, { email: address, name: "No Session", role: "manager", temporaryPassword: "temporary pass 2" }, deps);
+    expect((await admin().query(`select 1 from session where user_id = $1`, [userId])).rowCount).toBe(0);
+  });
+
+  test("an email that already has an account is refused, and nothing is created", async () => {
+    const owner = await account("owner");
+    const existing = await account("customer");
+    await expect(createStaffUser(owner.ctx, { email: existing.address, name: "Dupe", role: "kitchen", temporaryPassword: "temporary pass 3" }, deps)).rejects.toThrow(/already/i);
+    expect((await admin().query(`select count(*)::int as n from "user" where email = $1`, [existing.address])).rows[0].n).toBe(1);
+  });
+});
+
 describe("createStaffUser, as used by the screen", () => {
   test("creates the account with the chosen role and a temporary password that works", async () => {
     const owner = await account("owner");

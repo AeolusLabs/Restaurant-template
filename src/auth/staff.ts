@@ -14,13 +14,21 @@ const staffSchema = z.object({
 });
 export type StaffInput = z.input<typeof staffSchema>;
 
+/** The email already belongs to an account. */
+export class DuplicateAccountError extends Error {}
+
 /** Owner only. Staff roles are never reachable through customer sign-up. */
 export async function createStaffUser(actor: RequestContext, input: StaffInput, deps: AuthDeps = {}): Promise<{ userId: string }> {
   requireRole(actor, ["owner"]);
   const { email, name, role, temporaryPassword } = staffSchema.parse(input);
   const auth = deps.auth ?? getAuth();
-  const created = await auth.api.signUpEmail({ body: { name, email, password: temporaryPassword } });
-  const userId = created.user.id;
+  // Not auth.api.signUpEmail: that signs the new person in, and in a server action it would put their session
+  // cookie in the owner's browser, replacing the owner's own. The account is created directly instead.
+  const ctx = await auth.$context;
+  if (await ctx.internalAdapter.findUserByEmail(email.toLowerCase(), { includeAccounts: false })) throw new DuplicateAccountError("An account with that email already exists");
+  const user = await ctx.internalAdapter.createUser({ email: email.toLowerCase(), name, emailVerified: false }, { method: "email-password" });
+  await ctx.internalAdapter.linkAccount({ userId: user.id, providerId: "credential", accountId: user.id, password: await ctx.password.hash(temporaryPassword) });
+  const userId = user.id;
   try {
     await withSystemContext(
       async (tx) => {
