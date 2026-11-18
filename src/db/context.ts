@@ -104,8 +104,8 @@ export function listenTo(
   void (async () => {
     let delay = 1000;
     while (!stopped) {
+      const c = new Client({ connectionString: url });
       try {
-        const c = new Client({ connectionString: url });
         client = c;
         c.on("error", () => {});
         c.on("notification", (m) => {
@@ -117,7 +117,8 @@ export function listenTo(
         markReady();
         await new Promise<void>((resolve) => c.once("end", () => resolve()));
       } catch {
-        // fall through to the delay and try again
+        // Close this attempt's connection (it may be open even though LISTEN failed), then fall through to the delay and try again.
+        await c.end().catch(() => {});
       }
       if (!stopped) {
         await new Promise((r) => setTimeout(r, delay));

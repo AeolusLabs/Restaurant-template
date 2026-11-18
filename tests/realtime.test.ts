@@ -1,4 +1,5 @@
 import { afterAll, afterEach, describe, expect, inject, test, vi } from "vitest";
+import { Client } from "pg";
 import { closePools, listenTo } from "../src/db/context";
 import { transitionOrder } from "../src/db/transition-order";
 import { StreamHub } from "../src/realtime/hub";
@@ -11,6 +12,32 @@ afterAll(async () => {
   await closeFixtures();
 });
 afterEach(() => vi.useRealTimers());
+
+describe("listenTo when LISTEN fails after connecting", () => {
+  test("closes that connection before it retries, so retries do not pile up open connections", async () => {
+    let listens = 0;
+    let ends = 0;
+    const query = vi.spyOn(Client.prototype, "query").mockImplementation((async function (this: Client, ...args: unknown[]) {
+      if (typeof args[0] === "string" && args[0].startsWith("LISTEN")) {
+        listens++;
+        throw new Error("LISTEN refused");
+      }
+      return undefined;
+    }) as never);
+    const end = vi.spyOn(Client.prototype, "end").mockImplementation((async () => {
+      ends++;
+    }) as never);
+    const listener = listenTo("order_events", () => {}, { url: urls.app });
+    try {
+      await vi.waitFor(() => expect(listens).toBeGreaterThanOrEqual(2), { timeout: 6000 });
+      expect(ends).toBeGreaterThanOrEqual(1); // the first failed attempt's connection was closed before the retry
+    } finally {
+      query.mockRestore();
+      end.mockRestore();
+      await listener.stop();
+    }
+  });
+});
 
 describe("the order_events trigger", () => {
   test("a status change sends one notification with the order and its new status", async () => {
