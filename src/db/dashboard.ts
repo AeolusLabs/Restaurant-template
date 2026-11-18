@@ -7,7 +7,7 @@ import { withRequestContext, type ContextOptions, type RequestContext } from "./
 // What the dashboard reads. Read-only, and run as the signed-in manager or owner, so row-level security still
 // decides what they may see. Every figure is a count or a sum of rows; nothing is estimated.
 //
-// "Sales" are orders whose payment succeeded and was not refunded, counted at the time of payment (payments.paid_at)
+// "Sales" are orders whose payment succeeded and was not refunded or cancelled, counted at the time of payment (payments.paid_at)
 // in the restaurant's timezone. A refunded order is counted separately and is never sales.
 
 export type DashboardData = {
@@ -35,11 +35,11 @@ export async function loadDashboard(ctx: RequestContext, options: Options, opts?
   const prevStart = period.prevStart.toISOString();
   const prevEnd = period.prevEnd.toISOString();
 
-  // Paid orders in a window that were not refunded.
+  // Paid orders in a window that were not refunded. A cancelled order whose refund has not gone through is not sales either.
   const sold = (from: string, to: string) => sql`(
     select o.id as order_id, o.profile_id, o.fulfilment, o.total_minor, pay.paid_at
     from payments pay join orders o on o.id = pay.order_id
-    where pay.status = 'succeeded' and pay.paid_at >= ${from}::timestamptz and pay.paid_at < ${to}::timestamptz
+    where pay.status = 'succeeded' and o.status <> 'cancelled' and pay.paid_at >= ${from}::timestamptz and pay.paid_at < ${to}::timestamptz
   )`;
   const current = sold(start, end);
 

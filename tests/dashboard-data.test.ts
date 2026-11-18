@@ -26,12 +26,14 @@ type Sale = {
   totalMinor: number;
   fulfilment?: "pickup" | "delivery";
   paymentStatus?: "succeeded" | "refunded";
+  /** Defaults to completed. */
+  orderStatus?: "completed" | "cancelled";
   items?: { name: string; quantity: number; lineTotalMinor: number }[];
   delivery?: { feeMinor: number; costMinor: number | null; status?: string };
   promo?: { code: string; discountMinor: number; released?: boolean };
 };
 async function sale(s: Sale): Promise<string> {
-  const { orderId } = await makeOrder(s.profileId, "completed", s.fulfilment ?? "pickup");
+  const { orderId } = await makeOrder(s.profileId, s.orderStatus ?? "completed", s.fulfilment ?? "pickup");
   await admin().query(`update orders set total_minor = $2, placed_at = $3 where id = $1`, [orderId, s.totalMinor, s.paidAt]);
   await admin().query(`insert into payments (order_id, provider, reference, amount_minor, currency, status, paid_at) values ($1, 'mock', $2, $3, 'NGN', $4, $5)`, [orderId, `pay-${orderId}`, s.totalMinor, s.paymentStatus ?? "succeeded", s.paidAt]);
   for (const i of s.items ?? []) {
@@ -66,6 +68,14 @@ describe("sales", () => {
     await sale({ profileId: c, paidAt: at("06-08", "23:00:00"), totalMinor: 222 }); // midnight on the 9th: the first moment in it
     await sale({ profileId: c, paidAt: at("06-15", "12:00:01"), totalMinor: 999 }); // after now
     expect((await load(now)).sales).toMatchObject({ salesMinor: 222, orders: 1 });
+  });
+
+  test("a cancelled order whose refund has not gone through yet is not sales, and is not yet refunded either", async () => {
+    const { at, now } = newYear();
+    const c = await customer();
+    await sale({ profileId: c, paidAt: at("06-10"), totalMinor: 300_000 });
+    await sale({ profileId: c, paidAt: at("06-11"), totalMinor: 400_000, orderStatus: "cancelled" }); // payment still "succeeded": the refund failed
+    expect((await load(now)).sales).toMatchObject({ salesMinor: 300_000, orders: 1, refundedMinor: 0, refundedOrders: 0 });
   });
 
   test("a refunded order is not sales, and is counted as refunded", async () => {
