@@ -498,3 +498,13 @@ Details and rulings are in `docs/phase-5-build-log.md`; the plan is `docs/superp
 - **Releasing a use:** a trigger on `orders` (placed to cancelled) sets `released_at`, so an order that expired or was abandoned unpaid gives its use back whichever code path cancelled it.
 - **Orders** store `discount_minor`, `promo_id` and a `promo_code` snapshot. Free delivery stores a delivery fee of 0 and records the waived fee on the redemption.
 - **Admin:** `src/db/promos-admin.ts` and `/admin/promos`; the form's parsing is `src/domain/promos/form.ts` (percent to basis points, amounts exact, dates as the restaurant's wall clock). `src/db/customers.ts` and `/admin/customers` (runs as the system role because emails live with the sign-in account; the role is checked first).
+
+## 25. Phase 6 implementation notes
+
+Details and rulings are in `docs/phase-6-build-log.md`; the plan is `docs/superpowers/plans/2026-11-18-phase-6-qr-codes.md`.
+
+- **Tables** (migrations 0023, 0024): `qr_sources` (slug, label, active) and `qr_scans` (a source and a time, nothing about the visitor), plus the foreign key from `orders.source_id`. Managers and owners read and write sources and read scans; the system role records scans; customers and the kitchen see nothing.
+- **The scan address** `/q/<slug>` (`src/app/q/[slug]/route.ts`, `src/qr/scan.ts`): counts one scan for an active source, sets the `qr_source` cookie for 7 days, and redirects to the menu. HEAD is answered but not counted.
+- **Attribution:** the checkout action reads the cookie and passes the slug to `createPickupOrder` and `createDeliveryOrder`, which resolve it with `qr_source_for_slug()` inside the order's transaction and store `source_id`. A missing, unknown, off or malformed slug never stops an order.
+- **Images:** `src/lib/qr.ts` is the only file that imports the `qrcode` library: random slugs, the scan address, SVG and PNG.
+- **Admin:** `src/db/qr-admin.ts` and `/admin/qr` (list and report for 7, 30, 90 days or all time, create), `/admin/qr/[id]` (printable code, rename, switch on and off), and `/admin/qr/[id]/image` (authenticated PNG and SVG download). Orders per source are paid orders; sales are the total of completed orders.

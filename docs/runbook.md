@@ -118,3 +118,12 @@ Restore rehearsal, once before launch and after any change to how data is stored
 4. **Check the numbers with your accountant.** A discount comes off the items before the service charge and tax, so the tax collected falls with it. If the restaurant wants tax on the full price, that is a rule change (`priceCart`), not a setting.
 5. **Free delivery costs you the rider.** The customer pays nothing for delivery but Chowdeck still charges the wallet; the delivery panel on the order shows what the customer paid against what the rider cost.
 6. **Customers.** Admin, Customers shows names, emails and phone numbers to managers and owners only. Block a customer only after talking to them: a blocked person cannot sign in or order, and nothing tells them why.
+
+## 12. Phase 6 checks before printing QR codes
+
+1. **`APP_URL` must be the public address** (the restaurant's real domain). The code holds that address, so a code printed with the wrong one is wasted paper. Check the address shown under the code on its page before you print.
+2. **Scan a printout, not the screen.** Print one code at the size you will use (a table card, a flyer) and scan it with two or three different phones. Make it large enough: at least 2 cm square for a card held in the hand, larger for a poster.
+3. **Make a code per place,** and name it by where it is ("Lekki flyer", "Delivery bag"). The name is for you; the printed code does not change when you rename it.
+4. **Switching a code off** keeps printed copies working (they still open the menu) but stops counting them. Do not switch off a code you still hand out if you want its numbers.
+5. **Read the numbers as a guide.** Scans are visits: a link preview or a bot can add one. Orders are credited to the last code the customer scanned in the 7 days before ordering, and a customer who blocks cookies is counted as a scan but not credited with the order.
+6. **The cookie** needs HTTPS in production (it is marked secure). Test the whole path on the live domain: scan, order, and look for the order under that code.

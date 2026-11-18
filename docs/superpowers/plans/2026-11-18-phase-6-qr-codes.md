@@ -25,8 +25,8 @@
 
 ## Tasks
 
-- [ ] **T1 QR images and slugs.** `src/lib/qr.ts` (SVG and PNG for a URL), slug generation and validation, the scan address.
-- [ ] **T2 Tables.** `qr_sources`, `qr_scans`, the foreign key from `orders.source_id`, RLS, `qr_source_for_slug` (migrations, applied).
-- [ ] **T3 Scans and attribution.** The `/q/[slug]` route, the cookie, and `source_id` set when an order is placed (pickup and delivery).
-- [ ] **T4 Admin.** `/admin/qr`: list with the report, create, rename, switch on and off, the printable code and downloads.
-- [ ] **T5 Docs, live walkthrough, completion status.**
+- [x] **T1 QR images and slugs.** `src/lib/qr.ts` (SVG and PNG for a URL), slug generation and validation, the scan address.
+- [x] **T2 Tables.** `qr_sources`, `qr_scans`, the foreign key from `orders.source_id`, RLS, `qr_source_for_slug` (migrations, applied).
+- [x] **T3 Scans and attribution.** The `/q/[slug]` route, the cookie, and `source_id` set when an order is placed (pickup and delivery).
+- [x] **T4 Admin.** `/admin/qr`: list with the report, create, rename, switch on and off, the printable code and downloads.
+- [x] **T5 Docs, live walkthrough, completion status.**
