@@ -102,6 +102,9 @@ async function Home({ searchParams }: { searchParams: PageProps<"/admin">["searc
               Promos
             </Link>
           )}
+          <Link href="/admin/qr" className={button.secondary}>
+            QR codes
+          </Link>
           <Link href="/admin/staff" className={button.secondary}>
             Staff
           </Link>

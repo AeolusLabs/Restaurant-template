@@ -14,6 +14,7 @@ const ADMIN_LINKS: readonly NavLink[] = [
   { href: "/admin/menu", label: "Menu", roles: ["owner", "manager"] },
   { href: "/admin/customers", label: "Customers", roles: ["owner", "manager"] },
   { href: "/admin/promos", label: "Promos", roles: ["owner", "manager"], feature: "promos" },
+  { href: "/admin/qr", label: "QR codes", roles: ["owner", "manager"] },
   { href: "/admin/staff", label: "Staff", roles: ["owner", "manager"] },
   { href: "/kitchen", label: "Kitchen screen", roles: ["owner", "manager", "kitchen"] },
 ];
@@ -52,7 +53,7 @@ async function AdminLinks() {
 /** The bar at the top of every staff screen: where you are, who you are, and (for admin) where to go. */
 export function StaffBar({ area, withNav }: { area: string; withNav: boolean }) {
   return (
-    <header className="border-b border-line bg-surface">
+    <header className="border-b border-line bg-surface print:hidden">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
         <Link href={withNav ? "/admin" : "/kitchen"} className="min-h-11 py-2 text-lg font-bold leading-tight text-ink">
           {restaurantConfig.name} <span className="font-normal text-muted">{area}</span>
