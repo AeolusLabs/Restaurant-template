@@ -286,6 +286,16 @@ describe("anomaly and abuse detector", () => {
     expect(p.summary).toContain("3 of their orders were refunded in the last 30 days");
   });
 
+  test("even on automatic with sending confirmed, a block waits for a person and blocks nobody", async () => {
+    const now = new Date(Date.UTC(nextFuture(), 5, 15, 12));
+    const c = await customerWith(now, 3);
+    const key = await setup(anomalyAgent, "auto", {}, true);
+    await runAgent(key, { trigger: "schedule" }, deps(now));
+    const [p] = (await proposals(key)).filter((x) => x.payload.profileId === c.userId);
+    expect(p).toMatchObject({ kind: "customer.block", mode: "approve", status: "pending" });
+    expect((await admin().query(`select blocked_at from profiles where id = $1`, [c.userId])).rows[0].blocked_at).toBeNull();
+  });
+
   test("and one who lets many orders expire unpaid in a day", async () => {
     const now = new Date(Date.UTC(nextFuture(), 5, 15, 12));
     const c = await customerWith(now, 0, 5);
