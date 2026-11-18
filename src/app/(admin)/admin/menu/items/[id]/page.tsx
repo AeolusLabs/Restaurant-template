@@ -10,6 +10,7 @@ import { button, card, field, label } from "@/components/ui";
 import { loadAdminMenu } from "@/db/menu-admin";
 import { groupProblem } from "@/domain/menu/rules";
 import { moneyInputValue } from "@/lib/money";
+import { valuesFrom } from "@/lib/notice-url";
 import {
   createGroupAction,
   createModifierAction,
@@ -30,7 +31,11 @@ const mini = "min-h-11 w-full rounded-lg border border-line-strong bg-surface px
 
 async function Editor({ params, searchParams }: { params: PageProps<"/admin/menu/items/[id]">["params"]; searchParams: PageProps<"/admin/menu/items/[id]">["searchParams"] }) {
   const { id } = await params;
-  const { notice, error } = await searchParams;
+  const sp = await searchParams;
+  const { notice, error } = sp;
+  // After a refused save the form shows what was typed; otherwise what is stored.
+  const v = valuesFrom(sp);
+  const edited = "name" in v;
   const { ctx } = await requireStaff(["owner", "manager"], `/admin/menu/items/${id}`);
   const categories = await loadAdminMenu(ctx);
   const item = categories.flatMap((c) => c.items).find((i) => i.id === id);
@@ -46,25 +51,25 @@ async function Editor({ params, searchParams }: { params: PageProps<"/admin/menu
           <label htmlFor="name" className={label}>
             Name
           </label>
-          <input id="name" name="name" defaultValue={item.name} required maxLength={120} className={field} />
+          <input id="name" name="name" defaultValue={v.name ?? item.name} required maxLength={120} className={field} />
         </div>
         <div>
           <label htmlFor="description" className={label}>
             Description
           </label>
-          <textarea id="description" name="description" defaultValue={item.description ?? ""} rows={2} maxLength={500} className={field} />
+          <textarea id="description" name="description" defaultValue={v.description ?? item.description ?? ""} rows={2} maxLength={500} className={field} />
         </div>
         <div>
           <label htmlFor="price" className={label}>
             Price
           </label>
-          <input id="price" name="price" defaultValue={moneyInputValue(item.priceMinor, exponent)} inputMode="decimal" required className={field} />
+          <input id="price" name="price" defaultValue={v.price ?? moneyInputValue(item.priceMinor, exponent)} inputMode="decimal" required className={field} />
         </div>
         <div>
           <label htmlFor="categoryId" className={label}>
             Category
           </label>
-          <select id="categoryId" name="categoryId" defaultValue={item.categoryId} className={field}>
+          <select id="categoryId" name="categoryId" defaultValue={v.categoryId ?? item.categoryId} className={field}>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -73,11 +78,11 @@ async function Editor({ params, searchParams }: { params: PageProps<"/admin/menu
           </select>
         </div>
         <label className="flex min-h-11 items-center gap-3">
-          <input type="checkbox" name="available" defaultChecked={item.available} className="h-5 w-5 accent-[var(--brand)]" />
+          <input type="checkbox" name="available" defaultChecked={edited ? v.available === "on" : item.available} className="h-5 w-5 accent-[var(--brand)]" />
           <span>In stock (untick to show it as sold out)</span>
         </label>
         <label className="flex min-h-11 items-center gap-3">
-          <input type="checkbox" name="active" defaultChecked={item.active} className="h-5 w-5 accent-[var(--brand)]" />
+          <input type="checkbox" name="active" defaultChecked={edited ? v.active === "on" : item.active} className="h-5 w-5 accent-[var(--brand)]" />
           <span>Shown on the menu (untick to archive it)</span>
         </label>
         <div className="flex flex-wrap gap-3">

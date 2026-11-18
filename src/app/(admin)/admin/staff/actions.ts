@@ -6,7 +6,7 @@ import { requireStaff } from "@/auth/customer";
 import { ForbiddenError } from "@/auth/session";
 import { DuplicateAccountError, blockStaff, changeStaffRole, createStaffUser, sendStaffPasswordReset, unblockStaff } from "@/auth/staff";
 import type { RequestContext } from "@/db/context";
-import { text } from "@/lib/form";
+import { echo, text } from "@/lib/form";
 import { redirectWith } from "@/lib/notice";
 
 const PATH = "/admin/staff";
@@ -23,13 +23,13 @@ function describe(err: unknown): string {
 }
 
 /** Owners only. Runs one staff change and comes back with a message. */
-async function act(fn: (ctx: RequestContext) => Promise<string>): Promise<never> {
+async function act(fn: (ctx: RequestContext) => Promise<string>, values?: Record<string, string>): Promise<never> {
   const { ctx } = await requireStaff(["owner"], PATH);
   let notice: string;
   try {
     notice = await fn(ctx);
   } catch (err) {
-    redirectWith(PATH, { error: describe(err) });
+    redirectWith(PATH, { error: describe(err), values });
   }
   redirectWith(PATH, { notice });
 }
@@ -49,7 +49,7 @@ export async function createStaffAction(form: FormData): Promise<void> {
       temporaryPassword: text(form, "temporaryPassword"),
     });
     return "Staff member added. Give them the temporary password and ask them to change it.";
-  });
+  }, echo(form, ["name", "email", "role"]));
 }
 
 export async function changeRoleAction(form: FormData): Promise<void> {

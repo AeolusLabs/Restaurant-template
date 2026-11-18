@@ -9,7 +9,7 @@ import { removeItemImage, setItemImage } from "@/db/item-image";
 import * as menu from "@/db/menu-admin";
 import { ImageError } from "@/lib/image-upload";
 import { parseMoneyInput } from "@/lib/money";
-import { text } from "@/lib/form";
+import { echo, text } from "@/lib/form";
 import { redirectWith } from "@/lib/notice";
 import { providers } from "@/providers";
 
@@ -27,13 +27,13 @@ function describe(err: unknown): string {
 }
 
 /** Checks who is asking, runs the change, and comes back to the screen with a message. */
-async function act(path: string, fn: (ctx: RequestContext) => Promise<{ notice: string; to?: string }>): Promise<never> {
+async function act(path: string, fn: (ctx: RequestContext) => Promise<{ notice: string; to?: string }>, values?: Record<string, string>): Promise<never> {
   const { ctx } = await requireStaff(["owner", "manager"], path);
   let result: { notice: string; to?: string };
   try {
     result = await fn(ctx);
   } catch (err) {
-    redirectWith(path, { error: describe(err) });
+    redirectWith(path, { error: describe(err), values });
   }
   redirectWith(result.to ?? path, { notice: result.notice });
 }
@@ -80,7 +80,9 @@ export async function moveCategoryAction(form: FormData): Promise<void> {
 // ---------- items ----------
 
 export async function createItemAction(form: FormData): Promise<void> {
-  await act(`${MENU}/items/new`, async (ctx) => {
+  await act(
+    `${MENU}/items/new`,
+    async (ctx) => {
     const created = await menu.createItem(ctx, {
       categoryId: text(form, "categoryId"),
       name: text(form, "name"),
@@ -88,7 +90,9 @@ export async function createItemAction(form: FormData): Promise<void> {
       priceMinor: price(form, "price"),
     });
     return { notice: "Item added. You can now add a photo and choices.", to: itemPath(created.id) };
-  });
+    },
+    echo(form, ["categoryId", "name", "description", "price"]),
+  );
 }
 
 export async function setItemAvailableAction(form: FormData): Promise<void> {
@@ -107,7 +111,9 @@ export async function moveItemAction(form: FormData): Promise<void> {
 
 export async function updateItemAction(form: FormData): Promise<void> {
   const itemId = text(form, "id");
-  await act(itemPath(itemId), async (ctx) => {
+  await act(
+    itemPath(itemId),
+    async (ctx) => {
     await menu.updateItem(ctx, id(form, "id"), {
       name: text(form, "name"),
       description: text(form, "description") || null,
@@ -117,7 +123,9 @@ export async function updateItemAction(form: FormData): Promise<void> {
       active: on(form, "active"),
     });
     return { notice: "Saved." };
-  });
+    },
+    echo(form, ["name", "description", "price", "categoryId", "available", "active"]),
+  );
 }
 
 export async function uploadImageAction(form: FormData): Promise<void> {

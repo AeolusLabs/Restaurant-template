@@ -5,6 +5,7 @@ import { requireStaff } from "@/auth/customer";
 import { Notice } from "@/components/staff/notice";
 import { button, card, field, label } from "@/components/ui";
 import { loadAdminMenu } from "@/db/menu-admin";
+import { valuesFrom } from "@/lib/notice-url";
 import { createItemAction } from "../../actions";
 
 export const metadata: Metadata = { title: "New menu item" };
@@ -13,7 +14,8 @@ async function NewItem({ searchParams }: { searchParams: PageProps<"/admin/menu/
   const params = await searchParams;
   const { ctx } = await requireStaff(["owner", "manager"], "/admin/menu/items/new");
   const categories = await loadAdminMenu(ctx);
-  const chosen = typeof params.category === "string" ? params.category : categories[0]?.id;
+  const v = valuesFrom(params);
+  const chosen = v.categoryId ?? (typeof params.category === "string" ? params.category : categories[0]?.id);
 
   if (categories.length === 0) {
     return (
@@ -42,19 +44,19 @@ async function NewItem({ searchParams }: { searchParams: PageProps<"/admin/menu/
           <label htmlFor="name" className={label}>
             Name
           </label>
-          <input id="name" name="name" required maxLength={120} className={field} />
+          <input id="name" name="name" defaultValue={v.name} required maxLength={120} className={field} />
         </div>
         <div>
           <label htmlFor="description" className={label}>
             Description <span className="font-normal text-muted">(optional)</span>
           </label>
-          <textarea id="description" name="description" rows={2} maxLength={500} className={field} />
+          <textarea id="description" name="description" defaultValue={v.description} rows={2} maxLength={500} className={field} />
         </div>
         <div>
           <label htmlFor="price" className={label}>
             Price
           </label>
-          <input id="price" name="price" inputMode="decimal" required className={field} aria-describedby="price-help" />
+          <input id="price" name="price" defaultValue={v.price} inputMode="decimal" required className={field} aria-describedby="price-help" />
           <p id="price-help" className="mt-1 text-sm text-muted">
             For example 3500 or 3500.50. Choices such as sizes are added after the item is saved.
           </p>

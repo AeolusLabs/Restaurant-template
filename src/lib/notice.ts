@@ -1,14 +1,11 @@
 import { redirect } from "next/navigation";
+import { buildNoticeUrl, type NoticeMessage } from "./notice-url";
 
 /**
- * Sends the person back to a screen with a short message to show there ("Order accepted", or what went wrong).
- * Staff actions use this instead of client state, so every button works as a plain form and the page always shows
- * the real, current data after the change.
+ * Sends the person back to a screen with a short message to show there ("Order accepted", or what went wrong),
+ * and, when something was refused, what they had typed. Staff actions use this instead of client state, so every
+ * button works as a plain form and the page always shows the real, current data after the change.
  */
-export function redirectWith(path: string, message: { notice?: string; error?: string }): never {
-  const params = new URLSearchParams();
-  if (message.notice) params.set("notice", message.notice);
-  if (message.error) params.set("error", message.error);
-  const query = params.toString();
-  redirect(query ? `${path}${path.includes("?") ? "&" : "?"}${query}` : path);
+export function redirectWith(path: string, message: NoticeMessage): never {
+  redirect(buildNoticeUrl(path, message));
 }

@@ -4,6 +4,7 @@ import { requireStaff } from "@/auth/customer";
 import { listStaff } from "@/auth/staff";
 import { Notice } from "@/components/staff/notice";
 import { button, card, field, label } from "@/components/ui";
+import { valuesFrom } from "@/lib/notice-url";
 import { createStaffAction, changeRoleAction, sendResetAction, setBlockedAction } from "./actions";
 
 export const metadata: Metadata = { title: "Staff" };
@@ -20,6 +21,7 @@ async function Staff({ searchParams }: { searchParams: PageProps<"/admin/staff">
   const { ctx } = await requireStaff(["owner", "manager"], "/admin/staff");
   const staff = await listStaff(ctx);
   const isOwner = ctx.role === "owner";
+  const v = valuesFrom(params);
 
   return (
     <div className="space-y-8">
@@ -92,19 +94,19 @@ async function Staff({ searchParams }: { searchParams: PageProps<"/admin/staff">
             <label htmlFor="s-name" className={label}>
               Name
             </label>
-            <input id="s-name" name="name" required maxLength={200} className={field} autoComplete="off" />
+            <input id="s-name" name="name" defaultValue={v.name} required maxLength={200} className={field} autoComplete="off" />
           </div>
           <div>
             <label htmlFor="s-email" className={label}>
               Email
             </label>
-            <input id="s-email" name="email" type="email" required className={field} autoComplete="off" />
+            <input id="s-email" name="email" type="email" defaultValue={v.email} required className={field} autoComplete="off" />
           </div>
           <div>
             <label htmlFor="s-role" className={label}>
               Role
             </label>
-            <select id="s-role" name="role" defaultValue="kitchen" className={field}>
+            <select id="s-role" name="role" defaultValue={v.role ?? "kitchen"} className={field}>
               {ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}

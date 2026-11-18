@@ -17,3 +17,4 @@ next-env.d.ts
 
 # scratch logs from local runs
 /.*.log
+/.q.cjs
