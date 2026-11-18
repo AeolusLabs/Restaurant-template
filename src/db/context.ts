@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import { APP_ROLES, type AppRole } from "@/domain/roles";
 
 // The only module (with scripts and test helpers) that imports the pg Pool.
@@ -80,4 +80,57 @@ export async function withPublicContext<T>(fn: (tx: Tx) => Promise<T>, opts?: Co
 /** Runs fn as the system actor (webhooks, jobs, seeds) in one transaction (the `system` database role). */
 export async function withSystemContext<T>(fn: (tx: Tx) => Promise<T>, opts?: ContextOptions): Promise<T> {
   return inTransaction(getPool(urlFor("DATABASE_SYSTEM_URL", opts), opts?.max), { userId: "", role: "system" }, fn);
+}
+
+/**
+ * Listens for NOTIFY messages on a channel, on its own connection (LISTEN needs a session, so it uses
+ * DATABASE_UNPOOLED_URL, not the pooled one). Reconnects with a growing delay if the connection drops. Messages
+ * sent while it is down are lost, which is why screens that use it also poll. `ready` resolves once the first
+ * LISTEN is in place.
+ */
+export function listenTo(
+  channel: string,
+  onMessage: (payload: string) => void,
+  opts?: { url?: string },
+): { ready: Promise<void>; stop: () => Promise<void> } {
+  if (!/^[a-z_][a-z0-9_]*$/.test(channel)) throw new Error("Invalid channel name");
+  const url = opts?.url ?? process.env.DATABASE_UNPOOLED_URL;
+  if (!url) throw new Error("DATABASE_UNPOOLED_URL is not set");
+  let stopped = false;
+  let client: Client | undefined;
+  let markReady!: () => void;
+  const ready = new Promise<void>((resolve) => (markReady = resolve));
+
+  void (async () => {
+    let delay = 1000;
+    while (!stopped) {
+      try {
+        const c = new Client({ connectionString: url });
+        client = c;
+        c.on("error", () => {});
+        c.on("notification", (m) => {
+          if (m.channel === channel && m.payload) onMessage(m.payload);
+        });
+        await c.connect();
+        await c.query(`LISTEN ${channel}`);
+        delay = 1000;
+        markReady();
+        await new Promise<void>((resolve) => c.once("end", () => resolve()));
+      } catch {
+        // fall through to the delay and try again
+      }
+      if (!stopped) {
+        await new Promise((r) => setTimeout(r, delay));
+        delay = Math.min(delay * 2, 30_000);
+      }
+    }
+  })();
+
+  return {
+    ready,
+    async stop() {
+      stopped = true;
+      await client?.end().catch(() => {});
+    },
+  };
 }
