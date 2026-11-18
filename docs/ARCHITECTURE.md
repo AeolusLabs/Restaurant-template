@@ -461,3 +461,15 @@ What the customer side added, and where it differs from the text above. Rulings 
 - **Branding**: `config.colors.primary` must be written as `oklch()` and dark enough for white text (contrast at least 4.5:1); the config check refuses anything else.
 - **Turnstile**: `verifyTurnstile()` runs in the sign-up, sign-in and checkout actions when `TURNSTILE_SECRET_KEY` is set.
 - **Password reset** (added after Phase 2): `EmailProvider` with a logging fake, Better Auth's reset flow with a one-hour single-use link that signs the account out everywhere, and `/forgot-password` and `/reset-password`. The answer to a reset request is identical whether or not the address has an account.
+
+## 22. Phase 3 implementation notes
+
+Details and rulings are in `docs/phase-3-build-log.md`.
+
+- **Areas.** `(customer)`, `(admin)/admin` and `(kitchen)/kitchen` are route groups with their own shells. `requireStaff(roles, here)` redirects; the database enforces access.
+- **What staff may do next** comes from `nextActions(role, status, fulfilment)` in `src/domain/orders/actions.ts`, derived from `TRANSITIONS`, so a screen cannot offer what the database refuses. Every action sends the status the screen showed (`expectedFrom`), so a stale screen gets a clear message instead of acting on a newer order.
+- **Audit.** Management actions (cancel, complete, refund, menu and staff changes, resolving alerts) write `audit_log` in the same transaction as the change.
+- **Alerts** are rows in the `alerts` table (migration 0009), raised by the system, read and resolved by managers and owners. Phase 4 reuses it for delivery failures and a low delivery wallet.
+- **Refunds** (`src/payments/refund.ts`): reserve a refund row (unique per payment), ask the provider, then mark the payment refunded and move the order to `refunded`. A refused refund raises an alert and can be retried.
+- **Realtime.** A trigger on `order_events` calls `pg_notify('order_events', ...)` (migration 0013). `listenTo()` in `src/db/context.ts` holds one session per web process, `StreamHub` fans messages out, `/api/stream/orders` streams them to signed-in staff with a 25 second heartbeat, and the kitchen board refetches `/api/staff/kitchen` on each message and every 10 seconds.
+- **Menu pictures** are stored through `StorageProvider` under random keys (`menu/<uuid>.<ext>`), checked by content (JPEG, PNG, WebP, up to 2 MB), and served by `/api/media/[...key]`, which accepts only keys of that shape.

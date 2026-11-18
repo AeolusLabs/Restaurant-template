@@ -30,30 +30,30 @@
 
 ## Tasks
 
-- [ ] **T1 Route groups and shells.** Move customer pages under `(customer)`; add `requireStaff()`; admin and kitchen layouts (responsive nav); role-based landing after sign-in.
+- [x] **T1 Route groups and shells.** Move customer pages under `(customer)`; add `requireStaff()`; admin and kitchen layouts (responsive nav); role-based landing after sign-in.
   - Tests: `requireStaff` allows only the listed roles; the post-sign-in landing path per role; existing suite still green.
-- [ ] **T2 Money input.** `parseMoneyInput(text, exponent)` and `moneyInputValue(minor, exponent)` in `src/lib/money.ts`.
+- [x] **T2 Money input.** `parseMoneyInput(text, exponent)` and `moneyInputValue(minor, exponent)` in `src/lib/money.ts`.
   - Tests: "3500", "3500.5", "3,500.50", "0.01"; refuses "3500.555", "-1", "abc", "1e3", over 2^53; round trip with `moneyInputValue`.
-- [ ] **T3 Staff order read model.** `src/db/staff-orders.ts`: `listOrdersForStaff`, `getOrderForStaff` with items, events, payments, refunds, and the phone only when RLS allows. Pure `nextActions(role, status, fulfilment)` in `src/domain/orders/actions.ts` from `TRANSITIONS`.
+- [x] **T3 Staff order read model.** `src/db/staff-orders.ts`: `listOrdersForStaff`, `getOrderForStaff` with items, events, payments, refunds, and the phone only when RLS allows. Pure `nextActions(role, status, fulfilment)` in `src/domain/orders/actions.ts` from `TRANSITIONS`.
   - Tests: kitchen sees active orders and no contact; manager sees all with phone; `nextActions` per role and status, including that it never offers what `canTransition` refuses.
-- [ ] **T4 Order actions with audit.** `staffTransitionOrder(ctx, code, to, reason?)` writes an audit entry for manager and owner actions; typed errors.
+- [x] **T4 Order actions with audit.** `staffTransitionOrder(ctx, code, to, reason?)` writes an audit entry for manager and owner actions; typed errors.
   - Tests: kitchen can accept, prepare, ready, hand over; kitchen cannot cancel; manager can cancel; every management action is audited; a stale screen (status already changed) gives a clear error.
-- [ ] **T5 Alerts.** Migration `alerts` (RLS: system inserts, manager and owner read and resolve). `settlePayment` raises an alert for mismatch, late and duplicate payments. `listOpenAlerts`, `resolveAlert`.
+- [x] **T5 Alerts.** Migration `alerts` (RLS: system inserts, manager and owner read and resolve). `settlePayment` raises an alert for mismatch, late and duplicate payments. `listOpenAlerts`, `resolveAlert`.
   - Tests: each unapplied-payment case creates one alert; managers read and resolve, kitchen and customers see none; resolving is audited.
-- [ ] **T6 Refunds.** `refundOrder(ctx or system, code, deps)`; refund webhook handling; cancel-and-refund for staff; customer cancel of a paid order before acceptance.
+- [x] **T6 Refunds.** `refundOrder(ctx or system, code, deps)`; refund webhook handling; cancel-and-refund for staff; customer cancel of a paid order before acceptance.
   - Tests: full refund moves order to `refunded`, writes a refund row and marks the payment; refused for orders not cancelled or completed; only once; provider failure leaves order cancelled with an alert and a retry works; `refund.processed` webhook marks the refund succeeded once (replay safe); customer cancel before acceptance refunds, after acceptance is refused.
-- [ ] **T7 Staff management.** `src/auth/staff.ts` additions: `listStaff`, `changeStaffRole`, `blockStaff`/`unblockStaff` (owner), with audit.
+- [x] **T7 Staff management.** `src/auth/staff.ts` additions: `listStaff`, `changeStaffRole`, `blockStaff`/`unblockStaff` (owner), with audit.
   - Tests: owner lists, creates, changes roles, blocks; manager can list but not change; nobody changes their own role or blocks themselves; a blocked staff member's session stops working.
-- [ ] **T8 Menu management server code.** `src/db/menu-admin.ts`: categories, items, modifier groups, modifiers (create, update, archive or delete, reorder), with Zod, audit, and the "an item needs at least one price" style checks.
+- [x] **T8 Menu management server code.** `src/db/menu-admin.ts`: categories, items, modifier groups, modifiers (create, update, archive or delete, reorder), with Zod, audit, and the "an item needs at least one price" style checks.
   - Tests: manager and owner can; kitchen and customer cannot (RLS); price stored exactly; sold-out toggle; archived items vanish from the customer menu; a modifier group's bounds are validated (`max >= min`, `min <= modifiers`).
-- [ ] **T9 Images.** `src/lib/image-upload.ts` (magic-byte check, size cap, random key), `/api/media/[...key]`, upload in item save.
+- [x] **T9 Images.** `src/lib/image-upload.ts` (magic-byte check, size cap, random key), `/api/media/[...key]`, upload in item save.
   - Tests: accepts real JPEG, PNG and WebP bytes; refuses a renamed text file, an oversize file, a wrong type; the route serves what was stored with the right type and long caching, and 404s for unknown keys and path tricks.
-- [ ] **T10 Realtime.** Migration for the `order_events` NOTIFY trigger; `src/realtime/` listener, fan-out, SSE route `/api/stream/orders`, heartbeat.
+- [x] **T10 Realtime.** Migration for the `order_events` NOTIFY trigger; `src/realtime/` listener, fan-out, SSE route `/api/stream/orders`, heartbeat.
   - Tests: inserting an order event delivers a notification; the fan-out reaches only signed-in staff streams and drops closed ones; the route refuses customers (403) and anonymous (401); heartbeat.
-- [ ] **T11 Kitchen display.** `/kitchen`: lanes (New, Cooking, Ready), large type, big buttons, live updates with polling fallback, page-title count, no contact details.
-- [ ] **T12 Admin orders screens.** `/admin/orders` (filters, search by code) and `/admin/orders/[code]` (detail, allowed actions, cancel with refund, refund, alerts).
-- [ ] **T13 Admin menu, staff and home screens.** `/admin` (needs attention: alerts, orders waiting to be accepted), `/admin/menu` (+ item and group editors, photo upload, sold-out toggles), `/admin/staff`.
-- [ ] **T14 Docs and verification.** Architecture section 22, runbook, build log; full gate; live walkthrough as owner, manager and kitchen; phone-width checks; self-review.
+- [x] **T11 Kitchen display.** `/kitchen`: lanes (New, Cooking, Ready), large type, big buttons, live updates with polling fallback, page-title count, no contact details.
+- [x] **T12 Admin orders screens.** `/admin/orders` (filters, search by code) and `/admin/orders/[code]` (detail, allowed actions, cancel with refund, refund, alerts).
+- [x] **T13 Admin menu, staff and home screens.** `/admin` (needs attention: alerts, orders waiting to be accepted), `/admin/menu` (+ item and group editors, photo upload, sold-out toggles), `/admin/staff`.
+- [x] **T14 Docs and verification.** Architecture section 22, runbook, build log; full gate; live walkthrough as owner, manager and kitchen; phone-width checks; self-review.
 
 ## Review focus
 

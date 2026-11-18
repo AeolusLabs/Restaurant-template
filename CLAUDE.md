@@ -65,7 +65,7 @@ pnpm typecheck      next typegen, then tsc
 pnpm test           Vitest (starts its own throwaway PostgreSQL 18)
 ```
 
-Not built yet: `db:seed:demo` (Phase 9). With `PAYMENT_PROVIDER=mock` (the default) checkout ends on a fake payment page at `/mock-pay/<reference>`, so the whole purchase can be tried locally; it is in-memory, so a dev server restart forgets pending test payments.
+Staff sign in on the same /sign-in page: owners and managers land on /admin, kitchen on /kitchen. Not built yet: `db:seed:demo` (Phase 9). With `PAYMENT_PROVIDER=mock` (the default) checkout ends on a fake payment page at `/mock-pay/<reference>`, so the whole purchase can be tried locally; it is in-memory, so a dev server restart forgets pending test payments.
 
 Migrations: tables come from `drizzle-kit generate`, everything else (RLS, functions, triggers) from `drizzle-kit generate --custom`. Apply every migration to the dev database in the same task.
 

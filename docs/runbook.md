@@ -88,3 +88,12 @@ Restore rehearsal, once before launch and after any change to how data is stored
 4. **Legal pages.** `/legal/terms` and `/legal/privacy` hold template wording. Replace it with the restaurant's reviewed text and bump `legal.policyVersion` in `config/restaurant.ts`.
 5. **Email and password reset.** `EMAIL_PROVIDER=mock` sends nothing, so "Forgot your password?" appears to work but no email arrives. Write an email adapter (docs/modules.md) and set `EMAIL_PROVIDER` before launch, then request a reset for a test account and confirm the email arrives, the link opens `/reset-password`, and the old password stops working. Reset links work once and expire after 1 hour; a reset signs the account out everywhere. Without email, the owner can reset a customer's password in the database only through the same flow, so there is no workaround.
 6. **Refunds.** A payment that cannot be applied (wrong amount, a cancelled order, a second payment) is recorded in `payments` and flagged in `audit_log` as `payment.mismatch`, `payment.late` or `payment.duplicate`. Until the Phase 3 admin screens exist, check for these with SQL and refund in the Paystack dashboard.
+
+## 9. Phase 3 checks before the restaurant uses the admin
+
+1. **`DATABASE_UNPOOLED_URL`** must be set on the `web` service. The kitchen's live updates use a direct connection (LISTEN does not work through PgBouncer's transaction mode). Without it the kitchen still works, by polling every 10 seconds.
+2. **Photos need real storage.** `STORAGE_PROVIDER=memory` loses every uploaded photo when the service restarts. Write the S3 adapter (docs/modules.md) and set `STORAGE_PROVIDER=s3` before the restaurant adds photos.
+3. **Server-Sent Events through Cloudflare.** Open `/kitchen` on the live domain and confirm it says "Live". If it says "Not live right now", the stream is being blocked or buffered; the board still refreshes every 10 seconds.
+4. **First owner.** Set `INITIAL_OWNER_EMAIL` and `INITIAL_OWNER_PASSWORD` for the first `pnpm db:seed`, sign in, add the manager and kitchen accounts from Staff, then remove the variables.
+5. **Refund path with a Paystack test key.** Pay a test order, cancel it from the admin, and confirm the refund appears in the Paystack dashboard and the order shows Refunded.
+6. **Alerts.** Anything on the admin home under "Needs attention" is money or an order that needs a person. Check it at the start and end of each service.
