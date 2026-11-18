@@ -49,6 +49,7 @@ export type PriceResult =
       subtotalMinor: number;
       serviceChargeMinor: number;
       taxMinor: number;
+      deliveryFeeMinor: number;
       totalMinor: number;
     }
   | { ok: false; problems: LineProblem[] };
@@ -92,7 +93,13 @@ function priceLine(line: CartLine, item: PricingItem | undefined): PricedLine | 
   };
 }
 
-export function priceCart(lines: readonly CartLine[], menu: readonly PricingItem[], charges: Charges): PriceResult {
+/**
+ * Prices the cart. `deliveryFeeMinor` is the zone's fee for a delivery order (from config, never from the
+ * browser). It is added after charges and is not taxed.
+ */
+export function priceCart(lines: readonly CartLine[], menu: readonly PricingItem[], charges: Charges, deliveryFeeMinor = 0): PriceResult {
+  assertMinor(deliveryFeeMinor);
+  if (deliveryFeeMinor < 0) throw new RangeError("The delivery fee cannot be negative");
   if (lines.length === 0) return { ok: false, problems: [{ index: -1, code: "empty_cart" }] };
 
   const byId = new Map(menu.map((i) => [i.id, i]));
@@ -121,6 +128,7 @@ export function priceCart(lines: readonly CartLine[], menu: readonly PricingItem
     taxMinor = applyBps(subtotalMinor + serviceChargeMinor, charges.taxBps);
     totalMinor = subtotalMinor + serviceChargeMinor + taxMinor;
   }
+  totalMinor += deliveryFeeMinor;
   assertMinor(totalMinor);
-  return { ok: true, lines: priced, subtotalMinor, serviceChargeMinor, taxMinor, totalMinor };
+  return { ok: true, lines: priced, subtotalMinor, serviceChargeMinor, taxMinor, deliveryFeeMinor, totalMinor };
 }

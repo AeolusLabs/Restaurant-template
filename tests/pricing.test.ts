@@ -197,3 +197,27 @@ describe("priceCart: charges", () => {
     }
   });
 });
+
+describe("priceCart: delivery fee", () => {
+  const lines = [{ itemId: "item-water", quantity: 20, modifierIds: [] }]; // subtotal 1,000,000
+
+  test("is added to the total after charges, and is never taxed", () => {
+    const r = priceCart(lines, menu, { serviceChargeBps: 500, taxBps: 750, pricesIncludeCharges: false }, 150_000);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.deliveryFeeMinor).toBe(150_000);
+    expect(r.taxMinor).toBe(78_750); // unchanged by the fee
+    expect(r.totalMinor).toBe(1_128_750 + 150_000);
+  });
+
+  test("with prices including charges, the total is the subtotal plus the fee", () => {
+    const r = priceCart(lines, menu, { serviceChargeBps: 500, taxBps: 750, pricesIncludeCharges: true }, 150_000);
+    expect(r.ok && r.totalMinor).toBe(1_150_000);
+  });
+
+  test("defaults to no fee, and refuses one that is negative or not whole", () => {
+    expect((priceCart(lines, menu, none) as { deliveryFeeMinor: number }).deliveryFeeMinor).toBe(0);
+    expect(() => priceCart(lines, menu, none, -1)).toThrow(RangeError);
+    expect(() => priceCart(lines, menu, none, 1.5)).toThrow(RangeError);
+  });
+});

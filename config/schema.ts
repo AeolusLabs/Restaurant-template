@@ -21,7 +21,8 @@ const isTimezone = (tz: string) => {
   }
 };
 
-export const restaurantConfigSchema = z.object({
+export const restaurantConfigSchema = z
+  .object({
   name: z.string().min(1),
   logo: z.string().nullable(),
   colors: z.object({
@@ -62,7 +63,10 @@ export const restaurantConfigSchema = z.object({
   }),
   delivery: z.object({
     dispatchOn: z.enum(["accepted", "preparing", "ready"]),
+    // The customer picks a zone by name, and the fee comes from here, never from the browser.
     zones: z.array(z.object({ name: z.string().min(1), feeMinor: z.number().int().min(0) })),
+    // An alert is raised when the Chowdeck wallet falls below this, before bookings start failing.
+    lowWalletMinor: z.number().int().min(0),
   }),
   charges: z.object({
     serviceChargeBps: bps,
@@ -94,7 +98,17 @@ export const restaurantConfigSchema = z.object({
       }),
     ),
   }),
-});
+  })
+  .superRefine((c, ctx) => {
+    const names = c.delivery.zones.map((z) => z.name);
+    if (new Set(names).size !== names.length) {
+      ctx.addIssue({ code: "custom", path: ["delivery", "zones"], message: "zone names must be unique, because the customer picks by name" });
+    }
+    if (c.features.delivery) {
+      if (c.delivery.zones.length === 0) ctx.addIssue({ code: "custom", path: ["delivery", "zones"], message: "add at least one delivery zone, or turn features.delivery off" });
+      if (!c.contact.phone) ctx.addIssue({ code: "custom", path: ["contact", "phone"], message: "delivery needs the restaurant's phone number: the rider is given it" });
+    }
+  });
 
 export type RestaurantConfig = z.infer<typeof restaurantConfigSchema>;
 

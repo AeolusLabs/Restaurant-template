@@ -65,3 +65,46 @@ describe("parseRestaurantConfig", () => {
     expect(parseRestaurantConfig(base())).toEqual(restaurantConfig);
   });
 });
+
+describe("delivery config", () => {
+  test("a low wallet threshold is required and cannot be negative", () => {
+    const c = base() as unknown as { delivery: { lowWalletMinor?: number } };
+    expect(restaurantConfig.delivery.lowWalletMinor).toBeGreaterThan(0);
+    c.delivery.lowWalletMinor = -1;
+    expect(restaurantConfigSchema.safeParse(c).success).toBe(false);
+    delete c.delivery.lowWalletMinor;
+    expect(restaurantConfigSchema.safeParse(c).success).toBe(false);
+  });
+
+  test("turning delivery on requires at least one zone and a restaurant phone number (the rider is given it)", () => {
+    const on = () => {
+      const c = base();
+      c.features.delivery = true;
+      return c;
+    };
+    expect(restaurantConfigSchema.safeParse(on()).success).toBe(true);
+    const noZones = on();
+    noZones.delivery.zones = [];
+    expect(restaurantConfigSchema.safeParse(noZones).success).toBe(false);
+    const noPhone = on();
+    noPhone.contact.phone = undefined;
+    expect(restaurantConfigSchema.safeParse(noPhone).success).toBe(false);
+  });
+
+  test("with delivery off, none of that is required", () => {
+    const c = base();
+    c.features.delivery = false;
+    c.delivery.zones = [];
+    c.contact.phone = undefined;
+    expect(restaurantConfigSchema.safeParse(c).success).toBe(true);
+  });
+
+  test("zone names are unique, because the customer picks by name", () => {
+    const c = base();
+    c.delivery.zones = [
+      { name: "Island", feeMinor: 1 },
+      { name: "Island", feeMinor: 2 },
+    ];
+    expect(restaurantConfigSchema.safeParse(c).success).toBe(false);
+  });
+});

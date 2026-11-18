@@ -20,7 +20,7 @@ const raw: RestaurantConfig = {
     sun: [],
   },
   pickup: { slotMinutes: 15, minLeadMinutes: 20, lastOrderCutoffMinutes: 30 },
-  delivery: { dispatchOn: "accepted", zones: [{ name: "Island", feeMinor: 150_000 }] },
+  delivery: { dispatchOn: "accepted", zones: [{ name: "Island", feeMinor: 150_000 }], lowWalletMinor: 500_000 },
   charges: { serviceChargeBps: 500, taxBps: 750, pricesIncludeCharges: true },
   orders: { unpaidExpiryMinutes: 30, cancellationWindow: "before_acceptance" },
   features: { promos: false, pickup: true, delivery: false, ai_agents: false, demo_mode: false },
