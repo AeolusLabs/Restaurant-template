@@ -6,7 +6,9 @@ import { loadPricingItems } from "@/db/menu";
 import { consents, orderContacts, orderEvents, orderItems, orders, payments, profiles, promoRedemptions, promos, qrScans, qrSources, refunds, user } from "@/db/schema";
 import { generatePublicCode } from "@/domain/orders/public-code";
 import type { OrderStatus } from "@/domain/orders/statuses";
-import { priceCart, type CartLine } from "@/domain/pricing/price-cart";
+import { pickLines } from "@/domain/demo/cart";
+import { DEMO_DOMAIN, DEMO_PROMO } from "@/domain/demo/constants";
+import { priceCart } from "@/domain/pricing/price-cart";
 import type { PromoTerms } from "@/domain/promos/rules";
 import { localDay, toMinutes, zonedToUtc } from "@/domain/time";
 import { seededRng } from "@/lib/rng";
@@ -17,9 +19,8 @@ import { seededRng } from "@/lib/rng";
 
 export class DemoSeedError extends Error {}
 
-export const DEMO_DOMAIN = "demo.invalid";
-/** The seeded promo and QR code. The slug uses the letters a QR slug allows. */
-export const DEMO_PROMO = "DEMO10";
+export { DEMO_DOMAIN, DEMO_PROMO };
+/** The seeded QR code. The slug uses the letters a QR slug allows. */
 const DEMO_QR_SLUG = "kd2mq9xv";
 const DEMO_QR_LABEL = "Demo table card";
 const PROMO_TERMS: PromoTerms = { kind: "percent", value: 1000, minOrderMinor: 0, maxDiscountMinor: 200_000 };
@@ -116,20 +117,7 @@ export async function seedDemo(opts: DemoSeedOptions): Promise<DemoSeedResult> {
         const final: OrderStatus = i % 12 === 5 ? "cancelled" : i % 25 === 7 ? "refunded" : "completed";
         const customer = customers[Math.floor(rng() ** 1.6 * customers.length)];
 
-        const lines: CartLine[] = [];
-        const picked = new Set<string>();
-        for (let l = 0, want = 1 + Math.floor(rng() * 3); l < want; l++) {
-          const item = menu[Math.floor(rng() * menu.length)];
-          if (picked.has(item.id)) continue;
-          picked.add(item.id);
-          const modifierIds: string[] = [];
-          for (const g of item.groups) {
-            const options = g.modifiers.filter((m) => m.available);
-            const need = Math.max(g.minSelect, rng() < 0.3 ? 1 : 0);
-            for (const m of options.slice(0, Math.min(need, g.maxSelect))) modifierIds.push(m.id);
-          }
-          lines.push({ itemId: item.id, quantity: rng() < 0.25 ? 2 : 1, modifierIds });
-        }
+        const lines = pickLines(menu, rng);
         const useCode = final !== "cancelled" && rng() < 0.15;
         let priced = priceCart(lines, menu, cfg.charges, 0, useCode ? PROMO_TERMS : undefined);
         if (!priced.ok) priced = priceCart(lines, menu, cfg.charges, 0);
@@ -173,11 +161,12 @@ export async function seedDemo(opts: DemoSeedOptions): Promise<DemoSeedResult> {
         if (withCode) await tx.insert(promoRedemptions).values({ promoId: promo.id, orderId: order.id, profileId: customer.id, discountMinor: priced.discountMinor, createdAt: at(0) });
         if (scanned) await tx.insert(qrScans).values({ sourceId: source.id, scannedAt: at(-3) });
 
-        const step = (from: OrderStatus | null, to: OrderStatus, minutes: number, actor: "customer" | "staff" | "system", reason?: string) =>
+        // A real order logs only its transitions, so the first event is placed to paid (or cancelled), not an arrival.
+        const step = (from: OrderStatus, to: OrderStatus, minutes: number, actor: "customer" | "staff" | "system", reason?: string) =>
           ({ orderId: order.id, fromStatus: from, toStatus: to, actorType: actor, actorId: actor === "customer" ? customer.id : null, reason: reason ?? null, createdAt: at(minutes) });
         if (final === "cancelled") {
           cancelled++;
-          await tx.insert(orderEvents).values([step(null, "placed", 0, "customer"), step("placed", "cancelled", cfg.orders.unpaidExpiryMinutes, "system", "Not paid in time")]);
+          await tx.insert(orderEvents).values([step("placed", "cancelled", cfg.orders.unpaidExpiryMinutes, "system", "Not paid in time")]);
           continue;
         }
         paid++;
@@ -185,7 +174,7 @@ export async function seedDemo(opts: DemoSeedOptions): Promise<DemoSeedResult> {
           .insert(payments)
           .values({ orderId: order.id, provider: "mock", reference: `demo_${code}`, amountMinor: priced.totalMinor, currency: cfg.currency.code, status: final === "refunded" ? "refunded" : "succeeded", paidAt: at(2), createdAt: at(1) })
           .returning({ id: payments.id });
-        const events = [step(null, "placed", 0, "customer"), step("placed", "paid", 2, "system"), step("paid", "accepted", 4, "staff"), step("accepted", "preparing", 6, "staff"), step("preparing", "ready", 20, "staff"), step("ready", "picked_up", 38, "staff"), step("picked_up", "completed", 48, "system")];
+        const events = [step("placed", "paid", 2, "system"), step("paid", "accepted", 4, "staff"), step("accepted", "preparing", 6, "staff"), step("preparing", "ready", 20, "staff"), step("ready", "picked_up", 38, "staff"), step("picked_up", "completed", 48, "system")];
         if (final === "refunded") {
           refunded++;
           events.push(step("completed", "refunded", 75, "staff", "Customer was unhappy with the order"));

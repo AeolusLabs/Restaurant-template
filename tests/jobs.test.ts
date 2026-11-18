@@ -7,6 +7,8 @@ const withDelivery = (on: boolean): RestaurantConfig => ({ ...restaurantConfig, 
 
 const withAgents = (on: boolean): RestaurantConfig => ({ ...restaurantConfig, features: { ...restaurantConfig.features, ai_agents: on } });
 
+const withDemo = (on: boolean): RestaurantConfig => ({ ...restaurantConfig, features: { ...restaurantConfig.features, demo_mode: on } });
+
 describe("buildJobs", () => {
   test("a restaurant without delivery runs only the order expiry job", () => {
     expect(buildJobs(withDelivery(false)).map((j) => j.name)).toEqual(["expire-unpaid"]);
@@ -28,5 +30,13 @@ describe("buildJobs", () => {
     expect(buildJobs(withAgents(false)).map((j) => j.name)).not.toContain("run-agents");
     const job = buildJobs(withAgents(true)).find((j) => j.name === "run-agents");
     expect(job?.everyMs).toBeLessThanOrEqual(10 * 60_000);
+  });
+
+  test("the simulated order stream runs only in demo mode, often enough to look live", () => {
+    expect(buildJobs(withDemo(false)).map((j) => j.name)).not.toContain("demo-orders");
+    const job = buildJobs(withDemo(true)).find((j) => j.name === "demo-orders");
+    expect(job).toBeDefined();
+    expect(job!.everyMs).toBeGreaterThanOrEqual(5_000);
+    expect(job!.everyMs).toBeLessThanOrEqual(30_000);
   });
 });

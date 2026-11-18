@@ -4,6 +4,7 @@ import { dispatchQueued, queueDeliveries } from "@/delivery/dispatch";
 import { syncDeliveries } from "@/delivery/sync";
 import { checkWallet } from "@/delivery/wallet";
 import { runDueAgents } from "@/agents/schedule";
+import { runDemoStream } from "./demo-stream";
 import { expireUnpaidOrders } from "./expire-unpaid";
 import type { Job } from "./worker";
 
@@ -51,6 +52,17 @@ export function buildJobs(cfg: RestaurantConfig = restaurantConfig): Job[] {
       run: async () => {
         const r = await runDueAgents({ config: cfg });
         if (r.ran.length || r.expired) console.log(`run-agents: ran ${r.ran.join(", ") || "nothing"}, ${r.expired} proposals expired`);
+      },
+    });
+  }
+  if (cfg.features.demo_mode) {
+    // The simulated live order stream. It refuses to run against a real provider, and boot refuses to start with one.
+    jobs.push({
+      name: "demo-orders",
+      everyMs: 20_000,
+      run: async () => {
+        const r = await runDemoStream({ config: cfg });
+        if (r.placed || r.advanced || r.riders) console.log(`demo-orders: ${r.placed} placed, ${r.advanced} moved in the kitchen, ${r.riders} with riders`);
       },
     });
   }
