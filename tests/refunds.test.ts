@@ -136,6 +136,32 @@ describe("refundOrder", () => {
   });
 });
 
+describe("a refund that was paid out but never reached the order", () => {
+  test("pressing Refund again finishes the order without asking the provider a second time", async () => {
+    const provider = new MockPaymentProvider();
+    const { ctx } = await makeUser("manager");
+    const o = await cancelled(provider, ctx);
+    // The state left behind when the provider returned the money but the order could not be moved to refunded.
+    await admin().query(`insert into refunds (payment_id, amount_minor, status, provider_ref) select id, amount_minor, 'pending', 'mock-refund-x' from payments where order_id = $1`, [o.orderId]);
+    await admin().query(`update payments set status = 'refunded' where order_id = $1`, [o.orderId]);
+    expect(await statusOf(o.orderId)).toBe("cancelled");
+
+    await refundOrder({ type: "staff", ctx }, o.code, deps(provider));
+    expect(await statusOf(o.orderId)).toBe("refunded");
+    expect(provider.refunds).toEqual([]); // the money had already gone back; nothing more is asked of the provider
+    expect(await refundRows(o.orderId)).toHaveLength(1);
+  });
+
+  test("a refund with no provider reference yet is not treated as paid out", async () => {
+    const provider = new MockPaymentProvider();
+    const { ctx } = await makeUser("manager");
+    const o = await cancelled(provider, ctx);
+    await admin().query(`insert into refunds (payment_id, amount_minor, status) select id, amount_minor, 'pending' from payments where order_id = $1`, [o.orderId]);
+    await expect(refundOrder({ type: "staff", ctx }, o.code, deps(provider))).rejects.toMatchObject({ code: "already_refunded" });
+    expect(await statusOf(o.orderId)).toBe("cancelled");
+  });
+});
+
 describe("the refund webhook", () => {
   test("marks the refund succeeded, once", async () => {
     const provider = new MockPaymentProvider();

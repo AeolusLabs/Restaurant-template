@@ -11,7 +11,7 @@ import { providers } from "@/providers";
 import type { DeliveryProvider } from "@/providers/delivery/types";
 import type { PaymentProvider } from "@/providers/payment/types";
 
-export type RefundErrorCode = "not_refundable" | "no_payment" | "already_refunded" | "provider_failed";
+export type RefundErrorCode = "not_refundable" | "no_payment" | "already_refunded" | "provider_failed" | "order_not_updated";
 
 /** A refund cannot be made. The message is written for the staff member. */
 export class RefundError extends Error {
@@ -42,7 +42,8 @@ export async function refundOrder(actor: RefundActor, publicCode: string, deps: 
   const sys = { url: deps.systemUrl };
   const reason = deps.reason ?? null;
 
-  let reserved: { orderId: string; status: "cancelled" | "completed"; paymentId: string; reference: string; amountMinor: number; refundId: string };
+  type Reserved = { orderId: string; status: "cancelled" | "completed"; paymentId: string; reference: string; amountMinor: number; refundId: string };
+  let reserved: Reserved | { resume: true; orderId: string; status: "cancelled" | "completed" };
   try {
     reserved = await withSystemContext(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicCode, publicCode)).for("update");
@@ -53,6 +54,13 @@ export async function refundOrder(actor: RefundActor, publicCode: string, deps: 
       const paid = await tx.select().from(payments).where(eq(payments.orderId, order.id));
       const payment = paid.find((p) => p.status === "succeeded");
       if (!payment) {
+        // The provider already returned the money but the order was never moved to refunded (that step failed after it).
+        // Finish that step; asking the provider again would be wrong.
+        const paidOut = paid.find((p) => p.status === "refunded");
+        if (paidOut) {
+          const done = await tx.select({ providerRef: refunds.providerRef }).from(refunds).where(eq(refunds.paymentId, paidOut.id));
+          if (done.some((r) => r.providerRef)) return { resume: true as const, orderId: order.id, status: order.status };
+        }
         throw paid.some((p) => p.status === "refunded" || p.status === "partially_refunded")
           ? new RefundError("already_refunded", "This order has already been refunded")
           : new RefundError("no_payment", "No successful payment was found for this order");
@@ -67,6 +75,21 @@ export async function refundOrder(actor: RefundActor, publicCode: string, deps: 
     if (isUniqueViolation(err)) throw new RefundError("already_refunded", "This order is already being refunded");
     throw err;
   }
+
+  const moveOrder = async (orderId: string, from: "cancelled" | "completed") => {
+    try {
+      if (actor.type === "staff") {
+        await staffTransitionOrder(actor.ctx, publicCode, "refunded", { expectedFrom: from, ...(reason ? { reason } : {}) }, { appUrl: deps.appUrl });
+      } else {
+        await transitionOrder({ orderId, to: "refunded", actor: { type: "system" }, expectedFrom: from, ...(reason ? { reason } : {}) }, { systemUrl: deps.systemUrl });
+      }
+    } catch (err) {
+      if (err instanceof ForbiddenError) throw err;
+      console.error("refund paid out but the order was not updated:", err instanceof Error ? err.message : err);
+      throw new RefundError("order_not_updated", "The money was returned, but the order could not be marked refunded. Press Refund again to finish.");
+    }
+  };
+  if ("resume" in reserved) return moveOrder(reserved.orderId, reserved.status);
 
   let providerRef: string;
   try {
@@ -85,11 +108,7 @@ export async function refundOrder(actor: RefundActor, publicCode: string, deps: 
     await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, reserved.paymentId));
   }, sys);
 
-  if (actor.type === "staff") {
-    await staffTransitionOrder(actor.ctx, publicCode, "refunded", { expectedFrom: reserved.status, ...(reason ? { reason } : {}) }, { appUrl: deps.appUrl });
-  } else {
-    await transitionOrder({ orderId: reserved.orderId, to: "refunded", actor: { type: "system" }, expectedFrom: reserved.status, ...(reason ? { reason } : {}) }, { systemUrl: deps.systemUrl });
-  }
+  await moveOrder(reserved.orderId, reserved.status);
 }
 
 /**
