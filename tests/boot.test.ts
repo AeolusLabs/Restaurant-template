@@ -26,3 +26,38 @@ describe("validateBoot", () => {
     expect(() => validateBoot({ ...valid, PAYMENT_PROVIDER: "paystack" })).toThrow(/PAYSTACK_SECRET_KEY/);
   });
 });
+
+describe("demo mode", () => {
+  const demo = { promos: false, pickup: true, delivery: false, ai_agents: false, demo_mode: true };
+  const real = {
+    PAYMENT_PROVIDER: "paystack",
+    PAYSTACK_SECRET_KEY: "sk_test_x",
+    DELIVERY_PROVIDER: "chowdeck",
+    CHOWDECK_API_KEY: "k",
+    CHOWDECK_BASE_URL: "https://example.invalid",
+    LLM_PROVIDER: "anthropic",
+    ANTHROPIC_API_KEY: "k",
+    ANTHROPIC_MODEL: "m",
+  };
+
+  test("starts with the mock providers, which is what a fresh install uses", () => {
+    expect(() => validateBoot(valid, demo)).not.toThrow();
+  });
+
+  test("refuses a real payment provider, and says why", () => {
+    expect(() => validateBoot({ ...valid, PAYMENT_PROVIDER: "paystack", PAYSTACK_SECRET_KEY: "sk_test_x" }, demo)).toThrow(/demo mode[\s\S]*PAYMENT_PROVIDER/i);
+  });
+
+  test("refuses a real delivery provider or a real AI model", () => {
+    expect(() => validateBoot({ ...valid, DELIVERY_PROVIDER: "chowdeck", CHOWDECK_API_KEY: "k", CHOWDECK_BASE_URL: "https://example.invalid" }, demo)).toThrow(/DELIVERY_PROVIDER/);
+    expect(() => validateBoot({ ...valid, LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "k", ANTHROPIC_MODEL: "m" }, demo)).toThrow(/LLM_PROVIDER/);
+  });
+
+  test("names every real provider at once", () => {
+    expect(() => validateBoot({ ...valid, ...real }, demo)).toThrow(/PAYMENT_PROVIDER[\s\S]*DELIVERY_PROVIDER[\s\S]*LLM_PROVIDER/);
+  });
+
+  test("with demo mode off, real providers are allowed as before", () => {
+    expect(() => validateBoot({ ...valid, ...real }, { ...demo, demo_mode: false })).not.toThrow();
+  });
+});
