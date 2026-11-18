@@ -16,5 +16,7 @@ export type LLMRequest<T> = {
  * Each call reports its token usage; cost is computed from the price table in config.
  */
 export interface LLMProvider {
+  /** The model's name, which is the key into the price table (config agents.modelPrices). */
+  readonly model: string;
   complete<T>(request: LLMRequest<T>): Promise<{ output: T; usage: LLMUsage }>;
 }
