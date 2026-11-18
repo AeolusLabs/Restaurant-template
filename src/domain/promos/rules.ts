@@ -84,3 +84,24 @@ export function promoText(reason: PromoProblem, extra: { min?: string } = {}): s
       return "That code would cover the whole order, so it cannot be used here. Add something to your cart or try another code.";
   }
 }
+
+export type PromoStatus = "off" | "scheduled" | "expired" | "used_up" | "live";
+
+/** Where a promo stands for the manager looking at the list. `uses` is how many uses are in force. */
+export function promoStatus(p: Pick<Promo, "active" | "startsAt" | "expiresAt" | "maxRedemptions">, uses: number, now: Date): PromoStatus {
+  if (!p.active) return "off";
+  if (p.expiresAt && now >= p.expiresAt) return "expired";
+  if (p.startsAt && now < p.startsAt) return "scheduled";
+  if (p.maxRedemptions !== null && uses >= p.maxRedemptions) return "used_up";
+  return "live";
+}
+
+/** What a promo does, in a line: "10% off the items, up to N2,000, for orders of N3,000 or more". */
+export function describePromo(p: PromoTerms, money: (minor: number) => string): string {
+  const pct = (bps: number) => `${bps / 100}%`;
+  const what =
+    p.kind === "free_delivery" ? "Free delivery" : p.kind === "percent" ? `${pct(p.value ?? 0)} off the items` : `${money(p.value ?? 0)} off the items`;
+  const cap = p.kind === "percent" && p.maxDiscountMinor !== null ? `, up to ${money(p.maxDiscountMinor)}` : "";
+  const min = p.minOrderMinor > 0 ? `, for orders of ${money(p.minOrderMinor)} or more` : "";
+  return `${what}${cap}${min}`;
+}

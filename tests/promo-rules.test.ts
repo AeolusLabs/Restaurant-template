@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { applyPromo, normalizeCode, promoRejection, promoText, type Promo } from "../src/domain/promos/rules";
+import { applyPromo, describePromo, normalizeCode, promoRejection, promoStatus, promoText, type Promo } from "../src/domain/promos/rules";
 
 const base: Promo = {
   code: "WELCOME10",
@@ -89,5 +89,36 @@ describe("promoText", () => {
       expect(t.length, r).toBeGreaterThan(10);
       expect(t, r).not.toMatch(/[!]|—|--/);
     }
+  });
+});
+
+describe("promoStatus", () => {
+  const status = (over: Partial<Promo> = {}, uses = 0) => promoStatus(promo(over), uses, NOW);
+  test("live by default, and off wins over everything", () => {
+    expect(status()).toBe("live");
+    expect(status({ active: false, expiresAt: new Date("2020-01-01T00:00:00Z") })).toBe("off");
+  });
+  test("scheduled before it starts, expired once it ends", () => {
+    expect(status({ startsAt: new Date("2026-11-19T00:00:00Z") })).toBe("scheduled");
+    expect(status({ expiresAt: new Date("2026-11-18T11:00:00Z") })).toBe("expired");
+  });
+  test("used up when the total limit is reached, never when there is no limit", () => {
+    expect(status({ maxRedemptions: 3 }, 3)).toBe("used_up");
+    expect(status({ maxRedemptions: 3 }, 2)).toBe("live");
+    expect(status({ maxRedemptions: null }, 1_000_000)).toBe("live");
+  });
+});
+
+describe("describePromo", () => {
+  const money = (n: number) => "N" + (n / 100).toLocaleString("en");
+  test("says what each kind does, in plain words", () => {
+    expect(describePromo(promo({ value: 1000 }), money)).toBe("10% off the items");
+    expect(describePromo(promo({ value: 1250 }), money)).toBe("12.5% off the items");
+    expect(describePromo(promo({ kind: "fixed", value: 50_000 }), money)).toBe("N500 off the items");
+    expect(describePromo(promo({ kind: "free_delivery", value: null }), money)).toBe("Free delivery");
+  });
+  test("adds the cap and the minimum order when there are some", () => {
+    expect(describePromo(promo({ value: 1000, maxDiscountMinor: 200_000, minOrderMinor: 300_000 }), money)).toBe("10% off the items, up to N2,000, for orders of N3,000 or more");
+    expect(describePromo(promo({ kind: "free_delivery", value: null, minOrderMinor: 300_000 }), money)).toBe("Free delivery, for orders of N3,000 or more");
   });
 });

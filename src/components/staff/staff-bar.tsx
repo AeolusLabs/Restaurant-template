@@ -7,11 +7,12 @@ import type { AppRole } from "@/domain/roles";
 
 const link = "inline-flex min-h-11 items-center rounded-lg px-3 text-base font-semibold text-ink hover:bg-brand-soft";
 
-type NavLink = { href: string; label: string; roles: readonly AppRole[] };
+type NavLink = { href: string; label: string; roles: readonly AppRole[]; /** Shown only when this feature is on in the config. */ feature?: keyof typeof restaurantConfig.features };
 const ADMIN_LINKS: readonly NavLink[] = [
   { href: "/admin", label: "Home", roles: ["owner", "manager"] },
   { href: "/admin/orders", label: "Orders", roles: ["owner", "manager"] },
   { href: "/admin/menu", label: "Menu", roles: ["owner", "manager"] },
+  { href: "/admin/promos", label: "Promos", roles: ["owner", "manager"], feature: "promos" },
   { href: "/admin/staff", label: "Staff", roles: ["owner", "manager"] },
   { href: "/kitchen", label: "Kitchen screen", roles: ["owner", "manager", "kitchen"] },
 ];
@@ -38,7 +39,7 @@ async function AdminLinks() {
   const role = id?.ctx.role;
   return (
     <nav aria-label="Admin" className="-ml-3 flex basis-full flex-wrap items-center gap-1">
-      {ADMIN_LINKS.filter((l) => role && l.roles.includes(role)).map((l) => (
+      {ADMIN_LINKS.filter((l) => role && l.roles.includes(role) && (!l.feature || restaurantConfig.features[l.feature])).map((l) => (
         <Link key={l.href} href={l.href} className={link}>
           {l.label}
         </Link>
