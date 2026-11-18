@@ -127,3 +127,12 @@ Restore rehearsal, once before launch and after any change to how data is stored
 4. **Switching a code off** keeps printed copies working (they still open the menu) but stops counting them. Do not switch off a code you still hand out if you want its numbers.
 5. **Read the numbers as a guide.** Scans are visits: a link preview or a bot can add one. Orders are credited to the last code the customer scanned in the 7 days before ordering, and a customer who blocks cookies is counted as a scan but not credited with the order.
 6. **The cookie** needs HTTPS in production (it is marked secure). Test the whole path on the live domain: scan, order, and look for the order under that code.
+
+## 13. Phase 7 checks before relying on the dashboard
+
+1. **Look at it with real orders** after a week of trading, and check a few numbers by hand: add up one day's paid orders in Admin, Orders and compare with that day's column.
+2. **The timezone is `timezone` in `config/restaurant.ts`.** If days or the busiest hour look shifted, that setting is wrong.
+3. **Sales leave out refunds.** A refunded order is under "Not counted", not in sales. Sales are counted on the day the customer paid.
+4. **Delivery warning.** If it says delivery costs more than customers pay, change the zone fees in `config/restaurant.ts`, or reconsider free-delivery codes. It only counts deliveries a rider was booked for.
+5. **On a phone,** open the dashboard and check every chart is readable and nothing scrolls sideways. This has not been tried on a real phone.
+6. **Volume.** The queries read every paid order in the period. If the page becomes slow with a large history, add indexes on `payments (status, paid_at)` and tell us.

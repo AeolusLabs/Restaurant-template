@@ -508,3 +508,13 @@ Details and rulings are in `docs/phase-6-build-log.md`; the plan is `docs/superp
 - **Attribution:** the checkout action reads the cookie and passes the slug to `createPickupOrder` and `createDeliveryOrder`, which resolve it with `qr_source_for_slug()` inside the order's transaction and store `source_id`. A missing, unknown, off or malformed slug never stops an order.
 - **Images:** `src/lib/qr.ts` is the only file that imports the `qrcode` library: random slugs, the scan address, SVG and PNG.
 - **Admin:** `src/db/qr-admin.ts` and `/admin/qr` (list and report for 7, 30, 90 days or all time, create), `/admin/qr/[id]` (printable code, rename, switch on and off), and `/admin/qr/[id]/image` (authenticated PNG and SVG download). Orders per source are paid orders; sales are the total of completed orders.
+
+## 26. Phase 7 implementation notes
+
+Details and rulings are in `docs/phase-7-build-log.md`; the plan is `docs/superpowers/plans/2026-11-18-phase-7-dashboard.md`.
+
+- **Read-only.** No new tables or migrations. `src/db/dashboard.ts` runs as the signed-in manager or owner, so row-level security still decides what is visible, and adds up payments, orders, order items, deliveries and promo redemptions for a window.
+- **Sales** are orders whose payment succeeded and was not refunded, counted at `payments.paid_at` in the restaurant's timezone. Refunds are reported separately.
+- **Rules are pure** (`src/domain/dashboard/rules.ts`, `scale.ts`): the period is the last N local days including today so far, with the N days before it for comparison; the change is null (not infinity) when there is nothing to compare with; the heatmap has five steps; the delivery verdict separates profit, loss, even and none.
+- **Charts** (`src/components/dashboard/charts.tsx`) are server-rendered SVG and HTML following the dataviz guidance: thin marks, solid hairline grid, a 2px surface gap, text in text colours, a legend wherever there are two series, the browser's own tooltip, and a table view for each. Colours are fixed CSS variables on `.viz` in `globals.css` (validated; not the brand colour).
+- **The page** `/admin/dashboard` shows the delivery section only when `features.delivery` is on and the promo line only when `features.promos` is on.

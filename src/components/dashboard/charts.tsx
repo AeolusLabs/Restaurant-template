@@ -59,14 +59,14 @@ export function ColumnChart({ data, format, ariaLabel }: { data: Column[]; forma
   const bw = Math.min(24, Math.max(2, slot * 0.7));
   const y = (v: number) => top + plotH - (v / axisTop) * plotH;
   const peak = max > 0 ? data.findIndex((d) => d.value === max) : -1;
-  const shown = new Set(thinLabels(data.length, 6));
+  const shown = new Set(thinLabels(data.length, data.length <= 7 ? 7 : 6)); // a week shows every day
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel} className="block h-auto w-full" style={{ color: "var(--viz-label)" }}>
       {ticks(axisTop).map((t) => (
         <g key={t}>
           <line x1={left} x2={W - right} y1={y(t)} y2={y(t)} stroke={t === 0 ? "var(--viz-axis)" : "var(--viz-grid)"} strokeWidth="1" />
-          <text x={left - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="var(--viz-muted)">
+          <text x={left - 6} y={y(t) + 4} textAnchor="end" fontSize="12" fill="var(--viz-muted)">
             {format(t)}
           </text>
         </g>
@@ -82,7 +82,7 @@ export function ColumnChart({ data, format, ariaLabel }: { data: Column[]; forma
               <title>{d.tooltip}</title>
             </rect>
             {shown.has(i) && (
-              <text x={left + slot * i + slot / 2} y={H - 6} textAnchor={i === data.length - 1 ? "end" : i === 0 ? "start" : "middle"} fontSize="11" fill="var(--viz-muted)">
+              <text x={left + slot * i + slot / 2} y={H - 6} textAnchor={i === data.length - 1 ? "end" : i === 0 ? "start" : "middle"} fontSize="12" fill="var(--viz-muted)">
                 {d.label}
               </text>
             )}
@@ -118,7 +118,7 @@ export function Heatmap({ cells, hourLabel, ariaLabel }: { cells: HeatCell[]; ho
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel} className="block h-auto w-full">
       {DAYS.map((d, i) => (
-        <text key={d} x={left - 6} y={top + i * cell + cell / 2 + 4} textAnchor="end" fontSize="11" fill="var(--viz-muted)">
+        <text key={d} x={left - 6} y={top + i * cell + cell / 2 + 4} textAnchor="end" fontSize="12" fill="var(--viz-muted)">
           {d}
         </text>
       ))}
@@ -133,7 +133,7 @@ export function Heatmap({ cells, hourLabel, ariaLabel }: { cells: HeatCell[]; ho
         }),
       )}
       {hours.map((h, i) => (i % 2 === 0 || hours.length <= 8) && (
-        <text key={h} x={left + i * cell + (cell - gap) / 2} y={top + 7 * cell + 14} textAnchor="middle" fontSize="11" fill="var(--viz-muted)">
+        <text key={h} x={left + i * cell + (cell - gap) / 2} y={top + 7 * cell + 14} textAnchor="middle" fontSize="12" fill="var(--viz-muted)">
           {h}
         </text>
       ))}

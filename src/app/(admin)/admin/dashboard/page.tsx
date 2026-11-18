@@ -69,7 +69,7 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/admin/das
           <p className="text-muted">No orders were paid in this period yet. When they are, this page fills in by itself.</p>
         ) : (
           <>
-            <p className="text-5xl font-bold leading-tight">{money(sales.salesMinor)}</p>
+            <p className="text-4xl font-bold leading-tight [overflow-wrap:anywhere] sm:text-5xl">{money(sales.salesMinor)}</p>
             <p>
               From {plural(sales.orders, "order")}, {sales.orders > 0 ? `${money(average)} on average` : "nothing sold"}. Today is counted so far.
             </p>

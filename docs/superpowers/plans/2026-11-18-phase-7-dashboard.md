@@ -26,8 +26,8 @@
 
 ## Tasks
 
-- [ ] **T1 Pure rules.** `src/domain/dashboard/`: the period windows in the restaurant's timezone, the local day list, change against the previous period, heatmap steps, the sentences.
-- [ ] **T2 The numbers.** `src/db/dashboard.ts`: sales by day, peak hours, customers, fulfilment, delivery, best sellers, promos, with the previous period's totals.
-- [ ] **T3 Charts.** Server-rendered SVG: columns, heatmap, ranked bars, segmented bar, each with a table view.
-- [ ] **T4 The page.** `/admin/dashboard`, the period choice, the nav link, empty states, and what each section says to do.
-- [ ] **T5 Docs, live check, completion status.**
+- [x] **T1 Pure rules.** `src/domain/dashboard/`: the period windows in the restaurant's timezone, the local day list, change against the previous period, heatmap steps, the sentences.
+- [x] **T2 The numbers.** `src/db/dashboard.ts`: sales by day, peak hours, customers, fulfilment, delivery, best sellers, promos, with the previous period's totals.
+- [x] **T3 Charts.** Server-rendered SVG: columns, heatmap, ranked bars, segmented bar, each with a table view.
+- [x] **T4 The page.** `/admin/dashboard`, the period choice, the nav link, empty states, and what each section says to do.
+- [x] **T5 Docs, live check, completion status.**
