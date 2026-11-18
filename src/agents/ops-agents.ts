@@ -126,6 +126,7 @@ export const anomalyAgent = make(ANOMALY_KEY, "Watch for abuse", "Suggests revie
     summary: `Review ${f.name}: ${f.reason}. Blocking stops them signing in or ordering.`,
     payload: { profileId: f.id, name: f.name, reason: f.reason } satisfies BlockPayload,
     customerFacing: true,
+    neverAuto: true,
     dedupeKey: `anomaly:${f.id}:${f.rule}`,
   }));
 });

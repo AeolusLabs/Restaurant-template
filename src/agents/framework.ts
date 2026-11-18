@@ -1,4 +1,4 @@
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { restaurantConfig } from "../../config/restaurant";
 import type { RestaurantConfig } from "../../config/schema";
 import { requireRole } from "@/auth/session";
@@ -125,7 +125,9 @@ export async function runAgent(key: string, options: { trigger: "schedule" | "ma
   const stored = await withSystemContext(async (tx) => {
     const out: { id: string; mode: Mode }[] = [];
     for (const d of drafts) {
-      const mode = effectiveMode(cfg.autonomy, d.customerFacing, cfg.autoConfirmed);
+      const wanted = effectiveMode(cfg.autonomy, d.customerFacing, cfg.autoConfirmed);
+      // Running an agent by hand only proposes, and some proposals are never automatic: both wait for a person.
+      const mode: Mode = wanted === "auto" && (options.trigger === "manual" || d.neverAuto) ? "approve" : wanted;
       const [row] = await tx
         .insert(agentProposals)
         .values({ runId: run.id, agentKey: key, kind: d.kind, summary: d.summary.slice(0, 500), payload: d.payload as object, customerFacing: d.customerFacing, mode, dedupeKey: d.dedupeKey ?? null, createdAt: now, expiresAt: d.expiresAt ?? new Date(now.getTime() + FOURTEEN_DAYS) })
@@ -144,31 +146,43 @@ export async function runAgent(key: string, options: { trigger: "schedule" | "ma
 /**
  * Carries a proposal out: one that was approved, or one made to run automatically. Idempotent: a proposal that
  * has been executed is left alone, and two callers at once execute it once. A failure is kept on the proposal.
+ * One past its expiry is closed instead. The proposal is marked executed BEFORE the executor runs (and the lock
+ * released), so a message is sent at most once: a failure afterwards marks it failed, and a crash in between leaves
+ * it marked executed rather than risking a second send to the customer.
  */
 export async function executeProposal(id: string, deps: FrameworkDeps = {}): Promise<"executed" | "failed" | "skipped"> {
   const now = deps.now ?? new Date();
   const config = deps.config ?? restaurantConfig;
-  return withSystemContext(
-    async (tx) => {
-      const [p] = await tx.select().from(agentProposals).where(eq(agentProposals.id, id)).for("update");
-      if (!p) throw new ProposalNotDecidableError("Proposal not found");
-      const ready = p.status === "approved" || (p.status === "pending" && p.mode === "auto");
-      if (!ready) return "skipped";
-      try {
-        const executor = getExecutor(p.kind);
-        const payload = executor.payloadSchema.parse(p.payload);
-        const result = await executor.execute(payload, { now, config, notifications: deps.notifications ?? providers().notification }, tx);
-        await tx.update(agentProposals).set({ status: "executed", executedAt: now, result: (result ?? {}) as object, error: null }).where(eq(agentProposals.id, id));
-        await audit(tx, { role: "system" }, "agent.proposal.executed", p.agentKey, { proposalId: id, kind: p.kind });
-        return "executed";
-      } catch (err) {
-        await tx.update(agentProposals).set({ status: "failed", error: short(err) }).where(eq(agentProposals.id, id));
-        await audit(tx, { role: "system" }, "agent.proposal.failed", p.agentKey, { proposalId: id, kind: p.kind, error: short(err) });
-        return "failed";
-      }
-    },
-    { url: deps.systemUrl },
-  );
+  const url = { url: deps.systemUrl };
+  const claimed = await withSystemContext(async (tx) => {
+    const [p] = await tx.select().from(agentProposals).where(eq(agentProposals.id, id)).for("update");
+    if (!p) throw new ProposalNotDecidableError("Proposal not found");
+    const ready = p.status === "approved" || (p.status === "pending" && p.mode === "auto");
+    if (!ready) return null;
+    if (p.expiresAt && p.expiresAt <= now) {
+      await tx.update(agentProposals).set({ status: "expired" }).where(eq(agentProposals.id, id));
+      return null;
+    }
+    await tx.update(agentProposals).set({ status: "executed", executedAt: now }).where(eq(agentProposals.id, id));
+    return p;
+  }, url);
+  if (!claimed) return "skipped";
+  try {
+    await withSystemContext(async (tx) => {
+      const executor = getExecutor(claimed.kind);
+      const payload = executor.payloadSchema.parse(claimed.payload);
+      const result = await executor.execute(payload, { now, config, notifications: deps.notifications ?? providers().notification }, tx);
+      await tx.update(agentProposals).set({ result: (result ?? {}) as object, error: null }).where(eq(agentProposals.id, id));
+      await audit(tx, { role: "system" }, "agent.proposal.executed", claimed.agentKey, { proposalId: id, kind: claimed.kind });
+    }, url);
+    return "executed";
+  } catch (err) {
+    await withSystemContext(async (tx) => {
+      await tx.update(agentProposals).set({ status: "failed", executedAt: null, error: short(err) }).where(eq(agentProposals.id, id));
+      await audit(tx, { role: "system" }, "agent.proposal.failed", claimed.agentKey, { proposalId: id, kind: claimed.kind, error: short(err) });
+    }, url);
+    return "failed";
+  }
 }
 
 /** A manager or owner approves or rejects a pending proposal. Approving carries it out. Advice can only be dismissed. */
@@ -180,7 +194,8 @@ export async function decideProposal(ctx: RequestContext, id: string, approve: b
       const rows = await tx
         .update(agentProposals)
         .set({ status: approve ? "approved" : "rejected", decidedBy: ctx.userId, decidedAt: new Date() })
-        .where(and(eq(agentProposals.id, id), eq(agentProposals.status, "pending")))
+        // Approving an expired proposal is refused even if the expiry job has not closed it yet. Dismissing one is always fine.
+        .where(and(eq(agentProposals.id, id), eq(agentProposals.status, "pending"), approve ? gt(agentProposals.expiresAt, deps.now ?? new Date()) : undefined))
         .returning({ agentKey: agentProposals.agentKey, kind: agentProposals.kind });
       if (rows.length === 0) return null;
       await audit(tx, { id: ctx.userId, role: ctx.role }, approve ? "agent.proposal.approved" : "agent.proposal.rejected", rows[0].agentKey, { proposalId: id, kind: rows[0].kind });

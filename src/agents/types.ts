@@ -15,6 +15,8 @@ export type ProposalDraft = {
   payload: unknown;
   /** True when a customer will read the outcome (a message). Such proposals are never sent automatically without an owner's confirmation. */
   customerFacing: boolean;
+  /** Never carried out without a person's approval, whatever the agent's autonomy or confirmations. For decisions that must be a person's (blocking someone). */
+  neverAuto?: boolean;
   /** At most one open proposal per agent and key. */
   dedupeKey?: string;
   expiresAt?: Date;

@@ -134,7 +134,7 @@ describe("what happens to proposals", () => {
     const key = newKey();
     await setup(key, () => [draft("internal")]);
     await configure(key, "autonomy = 'auto'");
-    await runAgent(key, { trigger: "manual" }, deps());
+    await runAgent(key, { trigger: "schedule" }, deps());
     expect(await proposals(key)).toMatchObject([{ status: "executed", mode: "auto" }]);
     expect(executed).toEqual([{ text: "internal" }]);
   });
@@ -152,16 +152,34 @@ describe("what happens to proposals", () => {
     const key = newKey();
     await setup(key, () => [draft("to a customer", { customerFacing: true })]);
     await configure(key, "autonomy = 'auto', auto_confirmed_at = now()");
-    await runAgent(key, { trigger: "manual" }, deps());
+    await runAgent(key, { trigger: "schedule" }, deps());
     expect(await proposals(key)).toMatchObject([{ status: "executed", mode: "auto" }]);
     expect(executed).toEqual([{ text: "to a customer" }]);
+  });
+
+  test("running an agent by hand never carries anything out, even in automatic mode: the suggestions wait for approval", async () => {
+    const key = newKey();
+    await setup(key, () => [draft("by hand", { customerFacing: true })]);
+    await configure(key, "autonomy = 'auto', auto_confirmed_at = now()");
+    await runAgent(key, { trigger: "manual" }, deps());
+    expect(await proposals(key)).toMatchObject([{ status: "pending", mode: "approve" }]);
+    expect(executed).toEqual([]);
+  });
+
+  test("a proposal marked neverAuto waits for a person even when everything is switched to automatic and confirmed", async () => {
+    const key = newKey();
+    await setup(key, () => [draft("block someone", { customerFacing: true, neverAuto: true })]);
+    await configure(key, "autonomy = 'auto', auto_confirmed_at = now()");
+    await runAgent(key, { trigger: "schedule" }, deps());
+    expect(await proposals(key)).toMatchObject([{ status: "pending", mode: "approve" }]);
+    expect(executed).toEqual([]);
   });
 
   test("an executor that fails marks the proposal failed with the error, and the run is still a success", async () => {
     const key = newKey();
     await setup(key, () => [draft("boom"), draft("fine")]);
     await configure(key, "autonomy = 'auto'");
-    const r = await runAgent(key, { trigger: "manual" }, deps());
+    const r = await runAgent(key, { trigger: "schedule" }, deps());
     expect(r.status).toBe("succeeded");
     expect(await proposals(key)).toMatchObject([{ status: "failed", error: "the executor failed" }, { status: "executed" }]);
     expect(executed).toEqual([{ text: "fine" }]);
@@ -276,6 +294,55 @@ describe("deciding", () => {
     expect(await expireProposals(deps())).toBeGreaterThanOrEqual(1);
     expect((await proposals(key))[0].status).toBe("expired");
     await expect(decideProposal((await makeUser("owner")).ctx, r.proposalIds[0], true, deps())).rejects.toBeInstanceOf(ProposalNotDecidableError);
+  });
+});
+
+describe("an old or in-flight proposal", () => {
+  async function waitingToExpire() {
+    const key = newKey();
+    await setup(key, () => [draft("stale")]);
+    await configure(key, "autonomy = 'approve_first'");
+    const r = await runAgent(key, { trigger: "schedule" }, deps());
+    await admin().query(`update agent_proposals set expires_at = $2 where id = $1`, [r.proposalIds[0], new Date(NOW.getTime() - 1000)]);
+    return { key, id: r.proposalIds[0] };
+  }
+
+  test("one past its expiry cannot be approved even if the expiry job has not run yet", async () => {
+    const { key, id } = await waitingToExpire();
+    await expect(decideProposal((await makeUser("owner")).ctx, id, true, deps())).rejects.toBeInstanceOf(ProposalNotDecidableError);
+    expect(executed).toEqual([]);
+    expect((await proposals(key))[0].status).toBe("pending");
+  });
+
+  test("one past its expiry is not carried out, and is closed, even if it was approved before the expiry", async () => {
+    const { key, id } = await waitingToExpire();
+    await admin().query(`update agent_proposals set status = 'approved' where id = $1`, [id]);
+    expect(await executeProposal(id, deps())).toBe("skipped");
+    expect(executed).toEqual([]);
+    expect((await proposals(key))[0].status).toBe("expired");
+  });
+
+  test("while an executor is sending, the proposal is already marked, so a second caller cannot send it again", { timeout: 8000 }, async () => {
+    const key = newKey();
+    let inner: string | undefined;
+    let id = "";
+    registerExecutor({
+      kind: "test.reentrant",
+      payloadSchema: z.object({ text: z.string() }),
+      async execute(p) {
+        inner = await executeProposal(id, deps()); // a retry, or the other worker, arriving mid-send
+        executed.push(p);
+        return {};
+      },
+    });
+    await setup(key, () => [draft("once", { kind: "test.reentrant" })]);
+    await configure(key, "autonomy = 'auto'");
+    const r = await runAgent(key, { trigger: "manual" }, deps());
+    id = r.proposalIds[0];
+    await admin().query(`update agent_proposals set mode = 'auto' where id = $1`, [id]);
+    expect(await executeProposal(id, deps())).toBe("executed");
+    expect(inner).toBe("skipped");
+    expect(executed).toEqual([{ text: "once" }]);
   });
 });
 

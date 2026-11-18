@@ -74,7 +74,7 @@ export async function confirmAutoSendAction(form: FormData): Promise<void> {
   redirectWith(here, { notice: confirm ? "Confirmed. This agent may now send to customers without waiting for approval." : "Taken back. Messages to customers will wait for approval again." });
 }
 
-/** An owner runs a scheduled agent now. It only proposes: nothing is sent by running it. */
+/** An owner runs a scheduled agent now. It only proposes: nothing is sent by running it, even in automatic mode (the framework queues the suggestions for approval). */
 export async function runAgentNowAction(form: FormData): Promise<void> {
   const key = knownKey(form);
   const here = `${LIST}/${key}`;
