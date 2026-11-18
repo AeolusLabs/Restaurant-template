@@ -6,6 +6,8 @@ type Props = {
   subtotalMinor: number;
   serviceChargeMinor: number;
   taxMinor: number;
+  /** Shown as its own line when there is one. */
+  deliveryFeeMinor?: number;
   totalMinor: number;
   charges: { serviceChargeBps: number; taxBps: number; pricesIncludeCharges: boolean };
 };
@@ -13,7 +15,7 @@ type Props = {
 const pct = (bps: number) => `${(bps / 100).toLocaleString("en", { maximumFractionDigits: 2 })}%`;
 
 /** Every amount the customer will pay, before they pay it. */
-export function OrderTotals({ subtotalMinor, serviceChargeMinor, taxMinor, totalMinor, charges }: Props) {
+export function OrderTotals({ subtotalMinor, serviceChargeMinor, taxMinor, deliveryFeeMinor = 0, totalMinor, charges }: Props) {
   const money = useMoney();
   const row = "flex items-baseline justify-between gap-4";
   return (
@@ -56,6 +58,12 @@ export function OrderTotals({ subtotalMinor, serviceChargeMinor, taxMinor, total
             </div>
           )}
         </>
+      )}
+      {deliveryFeeMinor > 0 && (
+        <div className={row}>
+          <dt>Delivery</dt>
+          <dd>{money(deliveryFeeMinor)}</dd>
+        </div>
       )}
       <div className={`${row} border-t border-line pt-2 text-lg font-semibold`}>
         <dt>Total</dt>

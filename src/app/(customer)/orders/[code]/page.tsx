@@ -43,7 +43,7 @@ async function Order({ params, searchParams }: { params: PageProps<"/orders/[cod
         </p>
       )}
       <OrderTracker
-        initial={toPublicOrder(order, items)}
+        initial={toPublicOrder(order, items, found)}
         pickupLabel={order.pickupAt ? dateTime(order.pickupAt) : null}
         holdUntilLabel={order.expiresAt ? dateTime(order.expiresAt) : null}
         address={[c.address.line1, c.address.area, c.address.city].filter(Boolean).join(", ")}

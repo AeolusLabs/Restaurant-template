@@ -32,7 +32,7 @@ async function Orders() {
               <span className="block text-sm text-muted">{dateTime(o.placedAt)}</span>
             </span>
             <span className="text-right">
-              <span className="block font-semibold">{describeStatus(o.status).headline}</span>
+              <span className="block font-semibold">{describeStatus(o.status, o.fulfilment).headline}</span>
               <span className="block text-sm text-muted">{money(o.totalMinor)}</span>
             </span>
           </Link>

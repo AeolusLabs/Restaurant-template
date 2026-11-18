@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { requireStaff } from "@/auth/customer";
 import { staffTransitionOrder } from "@/db/staff-actions";
+import { DeliveryError, retryDelivery } from "@/delivery/resolve";
 import { ConcurrentTransitionError, IllegalTransitionError, OrderNotFoundError } from "@/domain/orders/transitions";
 import { text } from "@/lib/form";
 import { redirectWith } from "@/lib/notice";
@@ -16,6 +17,7 @@ function explain(err: unknown): string {
   if (err instanceof IllegalTransitionError) return "You cannot do that to this order.";
   if (err instanceof OrderNotFoundError) return "That order could not be found.";
   if (err instanceof RefundError) return err.message;
+  if (err instanceof DeliveryError) return err.message;
   throw err;
 }
 
@@ -69,4 +71,17 @@ export async function refundAction(formData: FormData): Promise<void> {
     redirectWith(back(code), { error: explain(err) });
   }
   redirectWith(back(code), { notice: "Refund sent. The customer's bank can take a few days to show it." });
+}
+
+/** Books a new rider for an order whose delivery failed, and puts the order back where it was. */
+export async function retryDeliveryAction(formData: FormData): Promise<void> {
+  const code = text(formData, "code");
+  if (!CODE.test(code)) redirectWith("/admin/orders", { error: "That order could not be found." });
+  const { ctx } = await requireStaff(["owner", "manager"], "/admin/orders");
+  try {
+    await retryDelivery(ctx, code);
+  } catch (err) {
+    redirectWith(back(code), { error: explain(err) });
+  }
+  redirectWith(back(code), { notice: "Delivery retried. A new rider is being booked." });
 }

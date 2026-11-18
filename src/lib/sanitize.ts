@@ -12,6 +12,32 @@ export type PublicOrderItem = {
   lineTotalMinor: number;
 };
 
+/** What a customer may know of their delivery: how far it has got and where to follow it. Nothing about the provider. */
+export type PublicDelivery = { status: string; trackingUrl: string | null };
+export type PublicDropoff = { zone: string; address: string; landmark: string | null };
+
+/** Only a web address is ever offered to a customer as a link. */
+const webUrl = (u: unknown): string | null => {
+  if (typeof u !== "string") return null;
+  try {
+    const p = new URL(u).protocol;
+    return p === "https:" || p === "http:" ? u : null;
+  } catch {
+    return null;
+  }
+};
+
+export function toPublicDelivery(row: { status: string; trackingUrl: string | null } | undefined): PublicDelivery | null {
+  return row ? { status: row.status, trackingUrl: webUrl(row.trackingUrl) } : null;
+}
+
+/** The delivery address the customer typed, from the order's contact snapshot. */
+export function toPublicDropoff(snapshot: unknown): PublicDropoff | null {
+  const s = (snapshot ?? {}) as { zone?: unknown; address?: unknown; landmark?: unknown };
+  if (typeof s.zone !== "string" || typeof s.address !== "string") return null;
+  return { zone: s.zone, address: s.address, landmark: typeof s.landmark === "string" ? s.landmark : null };
+}
+
 export type PublicOrder = {
   publicCode: string;
   status: string;
@@ -28,12 +54,19 @@ export type PublicOrder = {
   placedAt: string;
   expiresAt: string | null;
   items: PublicOrderItem[];
+  /** Null for a pickup order, and for a delivery order that has not been booked yet. */
+  delivery: PublicDelivery | null;
+  dropoff: PublicDropoff | null;
 };
 
 const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : typeof v === "string" ? v : null);
 
 /** The customer-facing view of an order. A whitelist: internal ids, the owner and contact details are not in it. */
-export function toPublicOrder(row: Record<string, unknown> | object, items: PublicOrderItem[] = []): PublicOrder {
+export function toPublicOrder(
+  row: Record<string, unknown> | object,
+  items: PublicOrderItem[] = [],
+  extra: { delivery?: PublicDelivery | null; dropoff?: PublicDropoff | null } = {},
+): PublicOrder {
   const r = row as Record<string, unknown>;
   const num = (k: string): number => {
     const v = r[k];
@@ -67,6 +100,8 @@ export function toPublicOrder(row: Record<string, unknown> | object, items: Publ
       modifiers: i.modifiers.map((m) => ({ name: m.name, priceDeltaMinor: m.priceDeltaMinor })),
       lineTotalMinor: i.lineTotalMinor,
     })),
+    delivery: extra.delivery ?? null,
+    dropoff: extra.dropoff ?? null,
   };
 }
 

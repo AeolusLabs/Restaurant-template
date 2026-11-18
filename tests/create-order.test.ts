@@ -285,7 +285,7 @@ describe("toPublicOrder", () => {
     const json = toPublicOrder(view!.order, view!.items);
     expect(Object.keys(json).sort()).toEqual(
       [
-        "currency", "deliveryFeeMinor", "discountMinor", "expiresAt", "fulfilment", "items", "notes", "pickupAt", "placedAt",
+        "currency", "delivery", "deliveryFeeMinor", "discountMinor", "dropoff", "expiresAt", "fulfilment", "items", "notes", "pickupAt", "placedAt",
         "publicCode", "serviceChargeMinor", "status", "subtotalMinor", "taxMinor", "totalMinor",
       ].sort(),
     );

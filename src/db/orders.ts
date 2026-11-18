@@ -9,10 +9,10 @@ import type { OrderStatus } from "@/domain/orders/statuses";
 import { IllegalTransitionError, OrderNotFoundError } from "@/domain/orders/transitions";
 import { isValidPickupSlot } from "@/domain/pickup/slots";
 import { priceCart, type LineProblem } from "@/domain/pricing/price-cart";
-import type { PublicOrderItem } from "@/lib/sanitize";
+import { toPublicDelivery, toPublicDropoff, type PublicDelivery, type PublicDropoff, type PublicOrderItem } from "@/lib/sanitize";
 import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
 import { loadPricingItems } from "./menu";
-import { orderContacts, orderItems, orders, profiles } from "./schema";
+import { deliveries, orderContacts, orderItems, orders, profiles } from "./schema";
 import { transitionOrder } from "./transition-order";
 
 export type RejectionCode =
@@ -38,7 +38,7 @@ export class OrderRejectedError extends Error {
 }
 
 export type OrderRow = typeof orders.$inferSelect;
-export type OrderView = { order: OrderRow; items: PublicOrderItem[] };
+export type OrderView = { order: OrderRow; items: PublicOrderItem[]; delivery: PublicDelivery | null; dropoff: PublicDropoff | null };
 
 export type CreateOrderDeps = {
   now?: Date;
@@ -204,7 +204,12 @@ export function getOrderForCustomer(ctx: RequestContext, publicCode: string, opt
     ctx,
     async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicCode, publicCode)).limit(1);
-      return order ? { order, items: await readItems(tx, order.id) } : null;
+      if (!order) return null;
+      const items = await readItems(tx, order.id);
+      if (order.fulfilment !== "delivery") return { order, items, delivery: null, dropoff: null };
+      const [delivery] = await tx.select({ status: deliveries.status, trackingUrl: deliveries.trackingUrl }).from(deliveries).where(eq(deliveries.orderId, order.id));
+      const [contact] = await tx.select({ addressSnapshot: orderContacts.addressSnapshot }).from(orderContacts).where(eq(orderContacts.orderId, order.id));
+      return { order, items, delivery: toPublicDelivery(delivery), dropoff: toPublicDropoff(contact?.addressSnapshot) };
     },
     opts,
   );

@@ -1,15 +1,30 @@
 import { and, asc, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 import type { OrderStatus } from "@/domain/orders/statuses";
-import type { PublicOrderItem } from "@/lib/sanitize";
+import { toPublicDelivery, toPublicDropoff, type PublicDropoff, type PublicOrderItem } from "@/lib/sanitize";
 import { withRequestContext, type ContextOptions, type RequestContext, type Tx } from "./context";
-import { orderContacts, orderEvents, orderItems, orders, payments, refunds } from "./schema";
+import { deliveries, orderContacts, orderEvents, orderItems, orders, payments, refunds } from "./schema";
 
 // What staff screens read. Every query runs as the signed-in person, so row-level security decides what they
 // may see: the kitchen gets active orders and no phone numbers or payments; managers and owners get everything.
 
 export type OrderRow = typeof orders.$inferSelect;
 export type StaffOrder = { order: OrderRow; phone: string | null; items: PublicOrderItem[] };
+/** The booking, as managers and owners see it. The kitchen has no access to deliveries. */
+export type StaffDelivery = {
+  status: string;
+  provider: string;
+  providerRef: string | null;
+  trackingUrl: string | null;
+  attempts: number;
+  round: number;
+  failureReason: string | null;
+  feeChargedMinor: number;
+  providerCostMinor: number | null;
+  nextAttemptAt: Date;
+};
 export type StaffOrderDetail = StaffOrder & {
+  delivery: StaffDelivery | null;
+  dropoff: PublicDropoff | null;
   events: { from: OrderStatus | null; to: OrderStatus; actor: string; reason: string | null; at: Date }[];
   payments: { reference: string; provider: string; status: string; amountMinor: number; currency: string; paidAt: Date | null }[];
   refunds: { paymentReference: string; amountMinor: number; status: string; reason: string | null; createdAt: Date }[];
@@ -70,7 +85,7 @@ export function getOrderForStaff(ctx: RequestContext, publicCode: string, opts?:
     ctx,
     async (tx) => {
       const [row] = await tx
-        .select({ order: orders, phone: orderContacts.phone })
+        .select({ order: orders, phone: orderContacts.phone, address: orderContacts.addressSnapshot })
         .from(orders)
         .leftJoin(orderContacts, eq(orderContacts.orderId, orders.id))
         .where(eq(orders.publicCode, publicCode))
@@ -78,6 +93,7 @@ export function getOrderForStaff(ctx: RequestContext, publicCode: string, opts?:
       if (!row) return null;
       const id = row.order.id;
       const items = (await itemsByOrder(tx, [id])).get(id) ?? [];
+      const [booking] = row.order.fulfilment === "delivery" ? await tx.select().from(deliveries).where(eq(deliveries.orderId, id)) : [];
       const events = await tx.select().from(orderEvents).where(eq(orderEvents.orderId, id)).orderBy(asc(orderEvents.createdAt));
       const pays = await tx.select().from(payments).where(eq(payments.orderId, id)).orderBy(asc(payments.createdAt));
       const refundRows = pays.length
@@ -87,6 +103,21 @@ export function getOrderForStaff(ctx: RequestContext, publicCode: string, opts?:
         order: row.order,
         phone: row.phone,
         items,
+        delivery: booking
+          ? {
+              status: booking.status,
+              provider: booking.provider,
+              providerRef: booking.providerRef,
+              trackingUrl: toPublicDelivery(booking)?.trackingUrl ?? null,
+              attempts: booking.attempts,
+              round: booking.round,
+              failureReason: booking.failureReason,
+              feeChargedMinor: booking.feeChargedMinor,
+              providerCostMinor: booking.providerCostMinor,
+              nextAttemptAt: booking.nextAttemptAt,
+            }
+          : null,
+        dropoff: row.order.fulfilment === "delivery" ? toPublicDropoff(row.address) : null,
         events: events.map((e) => ({ from: e.fromStatus, to: e.toStatus, actor: e.actorType, reason: e.reason, at: e.createdAt })),
         payments: pays.map((p) => ({ reference: p.reference, provider: p.provider, status: p.status, amountMinor: p.amountMinor, currency: p.currency, paidAt: p.paidAt })),
         refunds: refundRows.map((r) => ({

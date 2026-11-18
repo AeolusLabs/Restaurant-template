@@ -26,6 +26,10 @@ export type Quote =
       subtotalMinor: number;
       serviceChargeMinor: number;
       taxMinor: number;
+      /** Zero unless a delivery zone was given. Added after tax, never taxed. */
+      deliveryFeeMinor: number;
+      /** The zone the fee was worked out for, so the form can tell a stale answer from a current one. */
+      deliveryZone: string | null;
       totalMinor: number;
       charges: { serviceChargeBps: number; taxBps: number; pricesIncludeCharges: boolean };
     }
@@ -35,9 +39,9 @@ export type Quote =
 /**
  * Prices a cart for display. The same pricing code prices the real order at checkout, and checkout refuses
  * to place an order whose total differs from the one shown here. The cart holds no prices, so there is
- * nothing for the browser to tamper with.
+ * nothing for the browser to tamper with. A delivery zone is a name; its fee comes from config, never from the browser.
  */
-export async function quoteCartAction(raw: unknown): Promise<Quote> {
+export async function quoteCartAction(raw: unknown, zone?: unknown): Promise<Quote> {
   if (Array.isArray(raw) && raw.length === 0) return { ok: false, reason: "empty" };
   const parsed = cartSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, reason: "invalid" };
@@ -45,7 +49,8 @@ export async function quoteCartAction(raw: unknown): Promise<Quote> {
 
   const items = await withPublicContext((tx) => loadPricingItems(tx, [...new Set(lines.map((l) => l.itemId))]));
   const charges = restaurantConfig.charges;
-  const priced = priceCart(lines, items, charges);
+  const deliveryZone = restaurantConfig.features.delivery && typeof zone === "string" ? restaurantConfig.delivery.zones.find((z) => z.name === zone) : undefined;
+  const priced = priceCart(lines, items, charges, deliveryZone?.feeMinor ?? 0);
   const byId = new Map(items.map((i) => [i.id, i]));
   const modifierName = (itemId: string, modifierId: string) => {
     for (const g of byId.get(itemId)?.groups ?? []) for (const m of g.modifiers) if (m.id === modifierId) return m;
@@ -85,6 +90,8 @@ export async function quoteCartAction(raw: unknown): Promise<Quote> {
     subtotalMinor: priced.subtotalMinor,
     serviceChargeMinor: priced.serviceChargeMinor,
     taxMinor: priced.taxMinor,
+    deliveryFeeMinor: priced.deliveryFeeMinor,
+    deliveryZone: deliveryZone?.name ?? null,
     totalMinor: priced.totalMinor,
     charges,
   };

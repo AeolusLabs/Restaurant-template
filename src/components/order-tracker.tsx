@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useCart } from "@/components/cart/store";
 import { OrderTotals } from "@/components/cart/totals";
 import { useMoney } from "@/components/money-context";
-import { card } from "@/components/ui";
-import { PICKUP_STEPS, describeStatus, isFinished, stepIndex, type Tone } from "@/domain/orders/presentation";
+import { button, card } from "@/components/ui";
+import { describeRider, describeStatus, isFinished, stepIndex, stepsFor, type Tone } from "@/domain/orders/presentation";
 import type { OrderStatus } from "@/domain/orders/statuses";
 import type { PublicOrder } from "@/lib/sanitize";
 
@@ -66,8 +66,12 @@ export function OrderTracker({ initial, pickupLabel, holdUntilLabel, address, ch
     if (status !== "placed" && status !== "cancelled") clear();
   }, [status, clear]);
 
-  const d = describeStatus(status);
-  const current = stepIndex(status);
+  const delivering = order.fulfilment === "delivery";
+  const d = describeStatus(status, order.fulfilment);
+  const current = stepIndex(status, order.fulfilment);
+  const rider = delivering && !finished ? describeRider(order.delivery?.status) : null;
+  // The rider's own page, only while the delivery is live.
+  const trackingUrl = delivering && !finished && status !== "delivery_failed" ? order.delivery?.trackingUrl : null;
 
   return (
     <div className="space-y-8">
@@ -93,7 +97,7 @@ export function OrderTracker({ initial, pickupLabel, holdUntilLabel, address, ch
 
       {current !== null && (
         <ol className="space-y-1" aria-label="Order progress">
-          {PICKUP_STEPS.map((step, i) => {
+          {stepsFor(order.fulfilment).map((step, i) => {
             const state = i < current ? "Done" : i === current ? "Now" : "Next";
             return (
               <li
@@ -112,13 +116,36 @@ export function OrderTracker({ initial, pickupLabel, holdUntilLabel, address, ch
         </ol>
       )}
 
-      <section aria-labelledby="pickup-h" className="space-y-1">
-        <h2 id="pickup-h" className="text-lg font-bold">
-          Pickup
-        </h2>
-        {pickupLabel && <p>{pickupLabel}</p>}
-        <p className="text-muted">{address}</p>
-      </section>
+      {delivering ? (
+        <section aria-labelledby="delivery-h" className="space-y-2">
+          <h2 id="delivery-h" className="text-lg font-bold">
+            Delivery
+          </h2>
+          {order.dropoff && (
+            <p>
+              {order.dropoff.address}
+              <span className="block text-muted">
+                {order.dropoff.zone}
+                {order.dropoff.landmark ? `, near ${order.dropoff.landmark}` : ""}
+              </span>
+            </p>
+          )}
+          {rider && <p aria-live="polite">{rider}</p>}
+          {trackingUrl && (
+            <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className={button.secondary}>
+              Follow your rider
+            </a>
+          )}
+        </section>
+      ) : (
+        <section aria-labelledby="pickup-h" className="space-y-1">
+          <h2 id="pickup-h" className="text-lg font-bold">
+            Pickup
+          </h2>
+          {pickupLabel && <p>{pickupLabel}</p>}
+          <p className="text-muted">{address}</p>
+        </section>
+      )}
 
       <section aria-labelledby="items-h" className="space-y-3">
         <h2 id="items-h" className="text-lg font-bold">
@@ -141,6 +168,7 @@ export function OrderTracker({ initial, pickupLabel, holdUntilLabel, address, ch
             subtotalMinor={order.subtotalMinor}
             serviceChargeMinor={order.serviceChargeMinor}
             taxMinor={order.taxMinor}
+            deliveryFeeMinor={order.deliveryFeeMinor}
             totalMinor={order.totalMinor}
             charges={charges}
           />

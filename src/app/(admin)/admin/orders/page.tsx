@@ -69,7 +69,7 @@ async function Orders({ searchParams }: { searchParams: PageProps<"/admin/orders
                     {order.customerName} &middot; {items.reduce((n, i) => n + i.quantity, 0)} items
                   </span>
                 </span>
-                <span className="text-sm text-muted">{order.pickupAt ? `Pickup ${dateTime(order.pickupAt)}` : dateTime(order.placedAt)}</span>
+                <span className="text-sm text-muted">{order.fulfilment === "delivery" ? `Delivery · ${dateTime(order.placedAt)}` : order.pickupAt ? `Pickup ${dateTime(order.pickupAt)}` : dateTime(order.placedAt)}</span>
                 <span className="flex items-center gap-3">
                   <span className="font-semibold">{money(order.totalMinor)}</span>
                   <StatusBadge status={order.status} />

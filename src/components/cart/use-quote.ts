@@ -7,8 +7,8 @@ import type { StoredLine } from "./store";
 type State = { quote: Quote | null; loading: boolean; failed: boolean };
 const IDLE: State = { quote: null, loading: false, failed: false };
 
-/** Asks the server to price the cart whenever it changes. Only the latest answer is kept. An empty cart is not sent. */
-export function useQuote(lines: StoredLine[]): State {
+/** Asks the server to price the cart whenever it (or the delivery zone) changes. Only the latest answer is kept. An empty cart is not sent. */
+export function useQuote(lines: StoredLine[], zone?: string): State {
   const [state, setState] = useState<State>({ quote: null, loading: true, failed: false });
   const latest = useRef(0);
   const signature = JSON.stringify(lines);
@@ -18,7 +18,7 @@ export function useQuote(lines: StoredLine[]): State {
     if (empty) return;
     const id = ++latest.current;
     let cancelled = false;
-    quoteCartAction(JSON.parse(signature))
+    quoteCartAction(JSON.parse(signature), zone)
       .then((quote) => {
         if (!cancelled && id === latest.current) setState({ quote, loading: false, failed: false });
       })
@@ -28,7 +28,7 @@ export function useQuote(lines: StoredLine[]): State {
     return () => {
       cancelled = true;
     };
-  }, [signature, empty]);
+  }, [signature, empty, zone]);
 
   return empty ? IDLE : state;
 }

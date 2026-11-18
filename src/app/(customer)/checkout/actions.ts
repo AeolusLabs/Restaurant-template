@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { getIdentity } from "@/auth/customer";
-import { OrderRejectedError, createPickupOrder } from "@/db/orders";
-import { createOrderSchema } from "@/domain/checkout/order-input";
+import { OrderRejectedError, createDeliveryOrder, createPickupOrder } from "@/db/orders";
+import { createOrderSchema, deliveryOrderSchema, type CreateDeliveryOrderInput, type CreateOrderInput } from "@/domain/checkout/order-input";
 import { echo, fieldErrors, text, type FormState } from "@/lib/form";
 import { HUMAN_CHECK_FAILED, passesHumanCheck } from "@/lib/human-check";
 import { PaymentStartError, startPayment } from "@/payments/start-payment";
@@ -21,8 +21,8 @@ const REJECTIONS: Record<OrderRejectedError["code"], string> = {
 };
 
 /**
- * Places the order and sends the customer to pay. The browser supplies items, a pickup time, a phone number
- * and the total it displayed, never a price: the server prices the cart and refuses the order if the total
+ * Places the order and sends the customer to pay. The browser supplies items, a pickup time or a delivery zone and
+ * address, a phone number and the total it displayed, never a price or a delivery fee: the server prices the cart and refuses the order if the total
  * is not the one the customer saw. If starting the payment fails, the order still exists and the customer
  * is taken to it, where they can try paying again.
  */
@@ -30,7 +30,8 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
   const identity = await getIdentity();
   if (!identity) redirect("/sign-in?next=%2Fcheckout");
 
-  const values = echo(formData, ["pickupAt", "phone", "notes"]);
+  const delivery = text(formData, "fulfilment") === "delivery";
+  const values = echo(formData, ["fulfilment", "pickupAt", "zone", "address", "landmark", "phone", "notes"]);
   if (!(await passesHumanCheck(formData))) return { error: HUMAN_CHECK_FAILED, values };
   let lines: unknown;
   try {
@@ -39,14 +40,16 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
     return { error: "Your cart could not be read. Go back to your cart and try again.", values };
   }
   const expected = text(formData, "expectedTotalMinor");
-  const parsed = createOrderSchema.safeParse({
+  const common = {
     lines,
-    pickupAt: text(formData, "pickupAt"),
     phone: text(formData, "phone"),
     notes: text(formData, "notes"),
     expectedTotalMinor: expected === "" ? undefined : Number(expected),
     checkoutToken: text(formData, "checkoutToken"),
-  });
+  };
+  const parsed = delivery
+    ? deliveryOrderSchema.safeParse({ ...common, zone: text(formData, "zone"), address: text(formData, "address"), landmark: text(formData, "landmark") })
+    : createOrderSchema.safeParse({ ...common, pickupAt: text(formData, "pickupAt") });
   if (!parsed.success) {
     const errors = fieldErrors(parsed.error);
     if (errors.lines) return { error: "Your cart is empty or not valid. Go back to your cart and try again.", values };
@@ -57,10 +60,13 @@ export async function placeOrderAction(_prev: FormState, formData: FormData): Pr
 
   let code: string;
   try {
-    code = (await createPickupOrder(identity.ctx, parsed.data)).order.publicCode;
+    const placed = delivery ? await createDeliveryOrder(identity.ctx, parsed.data as CreateDeliveryOrderInput) : await createPickupOrder(identity.ctx, parsed.data as CreateOrderInput);
+    code = placed.order.publicCode;
   } catch (err) {
     if (err instanceof OrderRejectedError) {
-      return err.code === "invalid_slot" ? { fieldErrors: { pickupAt: REJECTIONS.invalid_slot }, values } : { error: REJECTIONS[err.code], values };
+      if (err.code === "invalid_slot") return { fieldErrors: { pickupAt: REJECTIONS.invalid_slot }, values };
+      if (err.code === "invalid_zone") return { fieldErrors: { zone: REJECTIONS.invalid_zone }, values };
+      return { error: REJECTIONS[err.code], values };
     }
     throw err;
   }

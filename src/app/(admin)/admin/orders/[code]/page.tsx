@@ -12,9 +12,10 @@ import { listOpenAlerts } from "@/db/alerts";
 import { getOrderForStaff } from "@/db/staff-orders";
 import { alertText } from "@/domain/alerts/text";
 import { canRefund, nextActions } from "@/domain/orders/actions";
+import { staffDeliveryLabel } from "@/domain/orders/presentation";
 import type { OrderStatus } from "@/domain/orders/statuses";
 import { dateTime, money } from "@/lib/format";
-import { cancelAndRefundAction, refundAction, transitionAction } from "../actions";
+import { cancelAndRefundAction, refundAction, retryDeliveryAction, transitionAction } from "../actions";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -24,7 +25,7 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
   const { ctx } = await requireStaff(["owner", "manager"], `/admin/orders/${code}`);
   const found = await getOrderForStaff(ctx, code);
   if (!found) notFound();
-  const { order, items, phone, events, payments, refunds } = found;
+  const { order, items, phone, events, payments, refunds, delivery, dropoff } = found;
   const { notice, error } = await searchParams;
   const alerts = (await listOpenAlerts(ctx)).filter((a) => a.orderCode === code);
 
@@ -35,6 +36,8 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
   const cancelAction = actions.find((a) => a.needsConfirm);
   const paid = payments.find((p) => p.status === "succeeded");
   const showRefund = canRefund(role, status) && !!paid;
+  const delivering = order.fulfilment === "delivery";
+  const canRetry = status === "delivery_failed";
 
   return (
     <div className="space-y-6">
@@ -47,7 +50,7 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
           </h2>
           <ul className="list-inside list-disc text-sm">
             {alerts.map((a) => (
-              <li key={a.id}>{alertText(a.kind)}</li>
+              <li key={a.id}>{alertText(a.kind, a.payload)}</li>
             ))}
           </ul>
           <Link href="/admin" className={button.secondary}>
@@ -61,7 +64,7 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
         <StatusBadge status={status} />
       </div>
 
-      {(forward.length > 0 || cancelAction || showRefund) && (
+      {(forward.length > 0 || cancelAction || showRefund || canRetry) && (
         <section className={`${card} space-y-4 p-4`} aria-label="Actions">
           {forward.length > 0 && (
             <div className="flex flex-wrap gap-3">
@@ -76,6 +79,15 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
                 </form>
               ))}
             </div>
+          )}
+          {canRetry && (
+            <form action={retryDeliveryAction} className="space-y-2">
+              <input type="hidden" name="code" value={order.publicCode} />
+              <p className="text-sm text-muted">The delivery failed. This books a new rider and puts the order back where it was. Or cancel and refund it below.</p>
+              <button type="submit" className={button.primary}>
+                Retry delivery
+              </button>
+            </form>
           )}
           {cancelAction && (
             <details>
@@ -118,7 +130,7 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
 
       <section className={`${card} space-y-2 p-4`} aria-labelledby="who">
         <h2 id="who" className="text-lg font-bold">
-          Customer and pickup
+          {delivering ? "Customer and delivery" : "Customer and pickup"}
         </h2>
         <p>{order.customerName}</p>
         {phone ? (
@@ -130,13 +142,59 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
         ) : (
           <p className="text-muted">No phone number on file.</p>
         )}
-        <p>{order.pickupAt ? `Pickup ${dateTime(order.pickupAt)}` : "No pickup time"} &middot; placed {dateTime(order.placedAt)}</p>
+        {delivering ? (
+          <p>
+            {dropoff ? `${dropoff.address}, ${dropoff.zone}${dropoff.landmark ? ` (near ${dropoff.landmark})` : ""}` : "No delivery address on file"} &middot; placed {dateTime(order.placedAt)}
+          </p>
+        ) : (
+          <p>{order.pickupAt ? `Pickup ${dateTime(order.pickupAt)}` : "No pickup time"} &middot; placed {dateTime(order.placedAt)}</p>
+        )}
         {order.notes && (
           <p className="rounded-lg bg-warn-soft p-3">
             <strong>Note:</strong> {order.notes}
           </p>
         )}
       </section>
+
+      {delivering && (
+        <section className={`${card} space-y-2 p-4`} aria-labelledby="rider">
+          <h2 id="rider" className="text-lg font-bold">
+            Delivery
+          </h2>
+          {delivery ? (
+            <>
+              <p className="font-semibold">{staffDeliveryLabel(delivery.status)}</p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <dt className="text-muted">Provider</dt>
+                <dd>{delivery.provider}</dd>
+                <dt className="text-muted">Booking reference</dt>
+                <dd>{delivery.providerRef ?? "Not booked yet"}</dd>
+                <dt className="text-muted">Attempts</dt>
+                <dd>
+                  {delivery.attempts} (round {delivery.round})
+                </dd>
+                <dt className="text-muted">Customer paid for delivery</dt>
+                <dd>{money(delivery.feeChargedMinor)}</dd>
+                <dt className="text-muted">Provider charged</dt>
+                <dd>{delivery.providerCostMinor === null ? "Not booked yet" : money(delivery.providerCostMinor)}</dd>
+              </dl>
+              {delivery.status === "queued" && <p className="text-sm text-muted">Next booking attempt {dateTime(delivery.nextAttemptAt)}.</p>}
+              {delivery.failureReason && (
+                <p className="rounded-lg bg-warn-soft p-3 text-sm">
+                  <strong>Last problem:</strong> {delivery.failureReason}
+                </p>
+              )}
+              {delivery.trackingUrl && (
+                <a href={delivery.trackingUrl} target="_blank" rel="noopener noreferrer" className={button.secondary}>
+                  Open the rider&apos;s tracking page
+                </a>
+              )}
+            </>
+          ) : (
+            <p className="text-muted">No rider has been booked yet. A rider is booked when the order reaches the status set in the restaurant config.</p>
+          )}
+        </section>
+      )}
 
       <section className={`${card} space-y-3 p-4`} aria-labelledby="items">
         <h2 id="items" className="text-lg font-bold">
@@ -157,6 +215,7 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
           subtotalMinor={order.subtotalMinor}
           serviceChargeMinor={order.serviceChargeMinor}
           taxMinor={order.taxMinor}
+          deliveryFeeMinor={order.deliveryFeeMinor}
           totalMinor={order.totalMinor}
           charges={c.charges}
         />

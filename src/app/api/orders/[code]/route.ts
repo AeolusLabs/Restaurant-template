@@ -14,5 +14,5 @@ export const GET = withScrub(async (request: Request, { params }: { params: Prom
   if (!identity) return Response.json({ error: "Sign in required" }, { status: 401, headers });
   const found = await getOrderForCustomer(identity.ctx, code);
   if (!found) return Response.json({ error: "Order not found" }, { status: 404, headers });
-  return Response.json({ order: toPublicOrder(found.order, found.items) }, { headers });
+  return Response.json({ order: toPublicOrder(found.order, found.items, found) }, { headers });
 });

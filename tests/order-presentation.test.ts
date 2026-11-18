@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { ORDER_STATUSES } from "../src/domain/orders/statuses";
-import { PICKUP_STEPS, describeStatus, isFinished, isPayable, stepIndex } from "../src/domain/orders/presentation";
+import { DELIVERY_STEPS, PICKUP_STEPS, describeRider, describeStatus, staffDeliveryLabel, isFinished, isPayable, stepIndex } from "../src/domain/orders/presentation";
 
 describe("describeStatus", () => {
   test("every status has a plain headline, a next-step line and a tone", () => {
@@ -74,5 +74,72 @@ describe("staffLabel", () => {
     expect(staffLabel("paid")).toBe("New");
     expect(staffLabel("placed")).toBe("Unpaid");
     expect(staffLabel("picked_up")).toBe("Collected");
+  });
+});
+
+describe("delivery orders", () => {
+  test("the progress steps run from placed to delivered, through the rider", () => {
+    expect(DELIVERY_STEPS.map((s) => s.status)).toEqual(["placed", "paid", "accepted", "preparing", "ready", "out_for_delivery", "completed"]);
+    expect(DELIVERY_STEPS.at(-1)?.label).toMatch(/delivered/i);
+  });
+
+  test("each status sits on its own step, and a pickup order is unchanged", () => {
+    expect(stepIndex("ready", "delivery")).toBe(4);
+    expect(stepIndex("out_for_delivery", "delivery")).toBe(5);
+    expect(stepIndex("completed", "delivery")).toBe(6);
+    expect(stepIndex("completed")).toBe(5);
+    expect(stepIndex("completed", "pickup")).toBe(5);
+    expect(stepIndex("out_for_delivery")).toBeNull();
+  });
+
+  test("a failed, cancelled or refunded delivery has no progress to show", () => {
+    for (const s of ["delivery_failed", "cancelled", "refunded"] as const) expect(stepIndex(s, "delivery"), s).toBeNull();
+  });
+
+  test("a ready delivery order talks about the rider, never the counter or showing a code", () => {
+    const d = describeStatus("ready", "delivery");
+    expect(d.detail).toMatch(/rider/i);
+    expect(`${d.headline} ${d.detail}`).not.toMatch(/counter|pickup/i);
+  });
+
+  test("a completed delivery says delivered", () => {
+    expect(describeStatus("completed", "delivery").headline).toMatch(/delivered/i);
+    expect(describeStatus("completed").headline).toBe("Completed");
+  });
+
+  test("every status keeps the plain voice for delivery too", () => {
+    for (const status of ORDER_STATUSES) {
+      const d = describeStatus(status, "delivery");
+      expect(d.headline.length, status).toBeGreaterThan(3);
+      expect(`${d.headline} ${d.detail}`, status).not.toMatch(/[!]|—|--/);
+    }
+  });
+});
+
+describe("describeRider", () => {
+  test("says in plain words where the rider is", () => {
+    expect(describeRider("queued")).toMatch(/booking/i);
+    expect(describeRider("pending")).toMatch(/booked/i);
+    expect(describeRider("awaiting_pickup")).toMatch(/restaurant/i);
+    expect(describeRider("in_transit")).toMatch(/on the way/i);
+    expect(describeRider("delivered")).toMatch(/delivered/i);
+  });
+
+  test("says nothing when there is no delivery yet or it went wrong, so the order's own message speaks", () => {
+    for (const s of [null, undefined, "cancelled", "failed", "unknown", "something-new"]) expect(describeRider(s), String(s)).toBeNull();
+  });
+
+  test("keeps the plain voice", () => {
+    for (const s of ["queued", "pending", "awaiting_pickup", "in_transit", "delivered"]) expect(describeRider(s)).not.toMatch(/[!]|—|--/);
+  });
+});
+
+describe("staffDeliveryLabel", () => {
+  test("names every delivery status in words, and an unrecognised one honestly", () => {
+    for (const s of ["queued", "pending", "awaiting_pickup", "in_transit", "delivered", "cancelled", "failed", "unknown"]) {
+      expect(staffDeliveryLabel(s), s).not.toBe(s);
+      expect(staffDeliveryLabel(s), s).not.toMatch(/[!]|—|--/);
+    }
+    expect(staffDeliveryLabel("something-new")).toMatch(/unclear/i);
   });
 });

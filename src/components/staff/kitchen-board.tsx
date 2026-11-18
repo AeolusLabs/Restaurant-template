@@ -16,7 +16,7 @@ type Props = {
 const LANES: { title: string; hint: string; statuses: OrderStatus[] }[] = [
   { title: "New", hint: "Paid, waiting to be accepted", statuses: ["paid"] },
   { title: "Cooking", hint: "Accepted or being prepared", statuses: ["accepted", "preparing"] },
-  { title: "Ready", hint: "Waiting for the customer", statuses: ["ready"] },
+  { title: "Ready", hint: "Waiting for the customer or rider", statuses: ["ready"] },
 ];
 const POLL_MS = 10_000;
 
@@ -115,7 +115,7 @@ export function KitchenBoard({ initial, role, timezone, locale }: Props) {
                         {o.publicCode}
                         {o.status === "paid" && <span className="ml-3 rounded bg-ink px-2 py-0.5 align-middle text-base tracking-normal text-surface">NEW</span>}
                       </p>
-                      <p className="text-lg font-semibold">{o.pickupAt ? `Pickup ${time.format(new Date(o.pickupAt))}` : "Pickup"}</p>
+                      <p className="text-lg font-semibold">{o.fulfilment === "delivery" ? "Delivery" : o.pickupAt ? `Pickup ${time.format(new Date(o.pickupAt))}` : "Pickup"}</p>
                     </div>
                     <p className="text-base text-muted">
                       {o.customerName} &middot; waiting {waiting} min

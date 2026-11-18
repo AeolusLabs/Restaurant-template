@@ -14,6 +14,19 @@ export const PICKUP_STEPS: readonly { status: OrderStatus; label: string }[] = [
   { status: "picked_up", label: "Collected" },
 ];
 
+export const DELIVERY_STEPS: readonly { status: OrderStatus; label: string }[] = [
+  { status: "placed", label: "Order placed" },
+  { status: "paid", label: "Paid" },
+  { status: "accepted", label: "Accepted" },
+  { status: "preparing", label: "Being prepared" },
+  { status: "ready", label: "Ready for the rider" },
+  { status: "out_for_delivery", label: "On its way" },
+  { status: "completed", label: "Delivered" },
+];
+
+/** The steps a customer sees for this kind of order. */
+export const stepsFor = (fulfilment: string) => (fulfilment === "delivery" ? DELIVERY_STEPS : PICKUP_STEPS);
+
 const TEXT: Record<OrderStatus, { headline: string; detail: string; tone: Tone }> = {
   placed: {
     headline: "Waiting for payment",
@@ -72,12 +85,19 @@ const TEXT: Record<OrderStatus, { headline: string; detail: string; tone: Tone }
   },
 };
 
-export const describeStatus = (status: OrderStatus) => TEXT[status];
+// Where delivery has its own words: nobody collects a delivery at the counter.
+const DELIVERY_TEXT: Partial<Record<OrderStatus, { headline: string; detail: string; tone: Tone }>> = {
+  ready: { headline: "Ready for the rider", detail: "Your order is packed. The rider will collect it shortly.", tone: "ok" },
+  completed: { headline: "Delivered", detail: "Your order has been delivered. We hope you enjoy your meal.", tone: "ok" },
+};
+
+export const describeStatus = (status: OrderStatus, fulfilment = "pickup") => (fulfilment === "delivery" ? DELIVERY_TEXT[status] : undefined) ?? TEXT[status];
 
 /** Which progress step the order is on, or null when it left the normal path (cancelled, refunded). */
-export function stepIndex(status: OrderStatus): number | null {
-  if (status === "completed") return PICKUP_STEPS.length - 1;
-  const i = PICKUP_STEPS.findIndex((s) => s.status === status);
+export function stepIndex(status: OrderStatus, fulfilment = "pickup"): number | null {
+  const steps = stepsFor(fulfilment);
+  if (status === "completed") return steps.length - 1;
+  const i = steps.findIndex((s) => s.status === status);
   return i === -1 ? null : i;
 }
 
@@ -105,3 +125,28 @@ const STAFF_LABEL: Record<OrderStatus, string> = {
 
 /** A short word for an order's status on staff screens: "New" means paid and waiting to be accepted. */
 export const staffLabel = (status: OrderStatus): string => STAFF_LABEL[status];
+
+const RIDER: Record<string, string> = {
+  queued: "We are booking your rider.",
+  pending: "A rider has been booked.",
+  awaiting_pickup: "Your rider is heading to the restaurant.",
+  in_transit: "Your rider has your order and is on the way.",
+  delivered: "Your rider has delivered your order.",
+};
+
+/** One line on where the rider is, from the delivery's status. Null when there is nothing useful to add. */
+export const describeRider = (deliveryStatus: string | null | undefined): string | null => (deliveryStatus ? (RIDER[deliveryStatus] ?? null) : null);
+
+const STAFF_DELIVERY: Record<string, string> = {
+  queued: "Waiting to be booked",
+  pending: "Rider booked",
+  awaiting_pickup: "Rider on the way to the restaurant",
+  in_transit: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled with the provider",
+  failed: "Booking failed",
+  unknown: "Status unclear",
+};
+
+/** A delivery's status on staff screens. A status we have no word for is said to be unclear, never guessed. */
+export const staffDeliveryLabel = (deliveryStatus: string): string => STAFF_DELIVERY[deliveryStatus] ?? "Status unclear";
