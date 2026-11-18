@@ -109,3 +109,12 @@ Restore rehearsal, once before launch and after any change to how data is stored
 7. **Wallet alert.** Set `delivery.lowWalletMinor` to what covers a day of deliveries. The admin home shows the balance and an alert when it falls below.
 8. **The worker must be running** (`pnpm worker`): it books riders, follows deliveries and checks the wallet. If it stops, paid delivery orders wait; nothing is lost.
 9. **The mock rider is in memory,** per process. With `DELIVERY_PROVIDER=mock` the web server and the worker do not share riders, so cancelling from the admin raises the "rider could not be cancelled" alert. That is the mock, not a bug.
+
+## 11. Phase 5 checks before using promos
+
+1. **Switch them on.** Set `features.promos` to `true` in `config/restaurant.ts`. Until then the checkout has no code field, customers cannot use codes, and the Promos link is hidden.
+2. **Try one end to end** with `PAYMENT_PROVIDER=mock`: create a code in Admin, Promos; place an order with it; confirm the discount appears before paying and on the order page, and that the same customer is refused a second time.
+3. **Limits.** A code with a total limit stops working for everyone when it is used up, and an order that expires unpaid gives its use back. Watch the "Used N of M" figure on the promo list.
+4. **Check the numbers with your accountant.** A discount comes off the items before the service charge and tax, so the tax collected falls with it. If the restaurant wants tax on the full price, that is a rule change (`priceCart`), not a setting.
+5. **Free delivery costs you the rider.** The customer pays nothing for delivery but Chowdeck still charges the wallet; the delivery panel on the order shows what the customer paid against what the rider cost.
+6. **Customers.** Admin, Customers shows names, emails and phone numbers to managers and owners only. Block a customer only after talking to them: a blocked person cannot sign in or order, and nothing tells them why.

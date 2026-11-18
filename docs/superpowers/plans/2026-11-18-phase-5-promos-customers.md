@@ -30,10 +30,10 @@
 
 ## Tasks
 
-- [ ] **T1 Pure promo rules.** `src/domain/promos/`: code normalisation, eligibility (dates, limits, flag), discount calculation, stacking; `priceCart` takes an applied promo and returns the discount, the discounted charges and the waived delivery.
-- [ ] **T2 Tables.** `promos`, `promo_redemptions`, RLS, `promo_for_code` and `promo_usage` functions (migrations, applied).
-- [ ] **T3 Applying a promo to an order.** Look up and validate in the order transaction under a lock, record the redemption, store `promo_id` and `discount_minor`, release on unpaid cancellation; pickup and delivery orders.
-- [ ] **T4 Checkout.** Code field and Apply, live quote with the discount, totals and order pages show it, admin order page shows the code.
-- [ ] **T5 Admin promos.** List, create, edit, switch on and off, with redemption counts and audit entries.
-- [ ] **T6 Customers.** List with search, customer page with orders and spend, block and unblock.
-- [ ] **T7 Docs, live walkthrough, completion status.**
+- [x] **T1 Pure promo rules.** `src/domain/promos/`: code normalisation, eligibility (dates, limits, flag), discount calculation, stacking; `priceCart` takes an applied promo and returns the discount, the discounted charges and the waived delivery.
+- [x] **T2 Tables.** `promos`, `promo_redemptions`, RLS, `promo_for_code` and `promo_usage` functions (migrations, applied).
+- [x] **T3 Applying a promo to an order.** Look up and validate in the order transaction under a lock, record the redemption, store `promo_id` and `discount_minor`, release on unpaid cancellation; pickup and delivery orders.
+- [x] **T4 Checkout.** Code field and Apply, live quote with the discount, totals and order pages show it, admin order page shows the code.
+- [x] **T5 Admin promos.** List, create, edit, switch on and off, with redemption counts and audit entries.
+- [x] **T6 Customers.** List with search, customer page with orders and spend, block and unblock.
+- [x] **T7 Docs, live walkthrough, completion status.**
