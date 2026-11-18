@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { z } from "zod";
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, test } from "vitest";
 import { restaurantConfig } from "../config/restaurant";
 import type { RestaurantConfig } from "../config/schema";
@@ -70,6 +71,23 @@ describe("the stub's inbound secret", () => {
   test("a message signed with a different secret is refused", async () => {
     const raw = JSON.stringify(msg());
     expect(await post(raw, deps(), signStubInbound(raw, "some-other-secret-value-0123456789"))).toEqual({ status: 401, outcome: "bad_signature" });
+  });
+});
+
+describe("an agent run that fails", () => {
+  const FAIL_KEY = `wh-fail-${Date.now().toString(36)}`;
+  beforeAll(() => {
+    registerAgent({ key: FAIL_KEY, title: "fails", description: "t", settingsSchema: z.object({}), defaultSettings: {}, run: async () => { throw new Error("the model call broke"); } });
+  });
+
+  test("is not marked processed: the event is flagged failed, and the provider's retry is handled once", async () => {
+    await admin().query(`insert into agent_configs (agent_key, enabled, autonomy, settings) values ($1, true, 'suggest_only', '{}') on conflict (agent_key) do nothing`, [FAIL_KEY]);
+    const m = msg();
+    await expect(post(m, deps({ agentKey: FAIL_KEY }))).rejects.toThrow("the model call broke");
+    expect((await admin().query(`select processed_at, payload->>'failed' as failed from webhook_events where provider = 'whatsapp' and event_id = $1`, [m.id])).rows).toEqual([{ processed_at: null, failed: "true" }]);
+    expect(await post(m)).toEqual({ status: 200, outcome: "processed" }); // the retry, with the agent working again
+    expect((await admin().query(`select processed_at is not null as done, payload->>'failed' as failed from webhook_events where provider = 'whatsapp' and event_id = $1`, [m.id])).rows).toEqual([{ done: true, failed: null }]);
+    expect(await post(m)).toEqual({ status: 200, outcome: "duplicate" }); // and a further replay changes nothing
   });
 });
 

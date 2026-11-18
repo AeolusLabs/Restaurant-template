@@ -19,8 +19,8 @@ const MAX_PER_HOUR = 10;
 
 /**
  * An inbound WhatsApp message. Same rules as the other webhooks: the signature is checked on the raw body, the
- * message is stored under a unique key so a replay changes nothing, and a failure while processing removes the
- * event again so the provider's retry is processed. A message starts the support agent, which only proposes: nothing
+ * message is stored under a unique key so a replay changes nothing, and a failure while processing flags the
+ * event so the provider's retry is processed. A message starts the support agent, which only proposes: nothing
  * is sent to the customer from here. What was stored is who and which message, not what they wrote.
  */
 export async function handleWhatsAppWebhook(rawBody: string, headers: Headers, deps: FrameworkDeps & { provider?: NotificationProvider; /** For tests: the key the support agent is registered under. */ agentKey?: string } = {}): Promise<WhatsAppWebhookResult> {
@@ -44,7 +44,15 @@ export async function handleWhatsAppWebhook(rawBody: string, headers: Headers, d
       .values({ provider: "whatsapp", eventId: message.id, eventType: "message", payload: { id: message.id, from: message.from }, receivedAt: now })
       .onConflictDoNothing()
       .returning({ id: webhookEvents.id });
-    if (!stored) return { outcome: "duplicate" as const };
+    if (!stored) {
+      // A delivery whose earlier attempt failed is flagged; the provider's retry claims it (one claimant: the update is atomic).
+      const [again] = await tx
+        .update(webhookEvents)
+        .set({ payload: sql`${webhookEvents.payload} - 'failed'` })
+        .where(and(eq(webhookEvents.provider, "whatsapp"), eq(webhookEvents.eventId, message.id), sql`${webhookEvents.payload}->>'failed' = 'true'`))
+        .returning({ id: webhookEvents.id });
+      return again ? { outcome: "run" as const, id: again.id } : { outcome: "duplicate" as const };
+    }
     const [recent] = await tx
       .select({ n: sql<number>`count(*)`.mapWith(Number) })
       .from(webhookEvents)
@@ -58,9 +66,13 @@ export async function handleWhatsAppWebhook(rawBody: string, headers: Headers, d
   if (decision.outcome !== "run") return { status: 200, outcome: decision.outcome };
 
   try {
-    await runAgent(deps.agentKey ?? SUPPORT_KEY, { trigger: "inbound", input: message }, deps);
+    const run = await runAgent(deps.agentKey ?? SUPPORT_KEY, { trigger: "inbound", input: message }, deps);
+    // A failed run is not a processed message: throw so the event is removed and the provider's retry is handled.
+    // (A switched-off agent or a reached spend cap is a decision, not a failure, so those stay processed.)
+    if (run.status === "failed") throw new Error(run.error ?? "the agent run failed");
   } catch (err) {
-    await withSystemContext((tx) => tx.delete(webhookEvents).where(eq(webhookEvents.id, decision.id)), url);
+    // The system role cannot delete webhook events (they are a record), so the event is flagged for the retry to claim.
+    await withSystemContext((tx) => tx.update(webhookEvents).set({ payload: sql`${webhookEvents.payload} || ${JSON.stringify({ failed: true })}::jsonb` }).where(eq(webhookEvents.id, decision.id)), url);
     throw err;
   }
   await withSystemContext((tx) => tx.update(webhookEvents).set({ processedAt: now }).where(eq(webhookEvents.id, decision.id)), url);
