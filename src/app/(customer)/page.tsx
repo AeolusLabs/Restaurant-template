@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -42,7 +43,8 @@ function ItemRow({ item }: { item: MenuItem }) {
           {money(item.priceMinor)}
         </p>
       </div>
-      <div className="shrink-0 pt-1">
+      <div className="flex shrink-0 flex-col items-end gap-2 pt-1">
+        {item.imageKey && <Image src={`/api/media/${item.imageKey}`} alt="" width={80} height={80} unoptimized className="h-20 w-20 rounded-lg object-cover" />}
         {!item.available ? (
           <span className="inline-flex min-h-11 items-center rounded-lg bg-warn-soft px-3 text-sm font-semibold text-warn">Sold out</span>
         ) : hasChoices ? (

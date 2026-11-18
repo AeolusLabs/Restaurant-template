@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -19,6 +20,7 @@ async function Item({ params }: { params: PageProps<"/menu/[slug]">["params"] })
 
   return (
     <article className="space-y-6">
+      {item.imageKey && <Image src={`/api/media/${item.imageKey}`} alt="" width={640} height={360} unoptimized className="max-h-64 w-full rounded-xl object-cover" />}
       <div>
         <p className="text-sm font-semibold text-muted">{categoryName}</p>
         <h1 className="text-2xl font-bold leading-tight">{item.name}</h1>
