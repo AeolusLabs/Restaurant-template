@@ -28,8 +28,8 @@
 
 ## Tasks
 
-- [ ] **T1 The four agents.** Executors for notes, hiding a dish, raising an alert and blocking a customer; two new alert kinds; each agent with its rules and tests.
-- [ ] **T2 Settings and screens.** Their settings in the agent form, generic for the new agents.
-- [ ] **T3 Demo data.** The boot guard, `seed:demo`, the demo banner.
-- [ ] **T4 The live stream.** The worker job.
-- [ ] **T5 Docs, live check, completion status.**
+- [x] **T1 The four agents.** Executors for notes, hiding a dish, raising an alert and blocking a customer; two new alert kinds; each agent with its rules and tests.
+- [x] **T2 Settings and screens.** Their settings in the agent form, generic for the new agents.
+- [x] **T3 Demo data.** The boot guard, `seed:demo`, the demo banner.
+- [x] **T4 The live stream.** The worker job.
+- [x] **T5 Docs, live check, completion status.**

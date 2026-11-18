@@ -56,16 +56,17 @@ First run: copy `.env.example` to `.env`, then in one terminal `pnpm db:local` (
 pnpm db:local       start the local PostgreSQL 18 (keep it running)
 pnpm setup          bootstrap roles, migrate, seed (idempotent, safe to re-run)
 pnpm dev            the web app
-pnpm worker         the job loop (unpaid-order expiry, and with delivery on: rider booking, delivery status, wallet check); run it beside the web app
+pnpm worker         the job loop (unpaid-order expiry; with delivery on: rider booking, delivery status, wallet check; with ai_agents: the agent runner; with demo_mode: the simulated order stream); run it beside the web app
 pnpm db:bootstrap   create the migrator, app and system roles and the database
 pnpm db:migrate     apply pending migrations
 pnpm db:seed        seed the small menu, and the first owner if INITIAL_OWNER_* are set
+pnpm db:seed:demo   fictional customers and two weeks of orders (only with features.demo_mode; needs DATABASE_ADMIN_URL; refuses if real orders exist)
 pnpm auth:schema    regenerate src/db/schema/auth.ts from the Better Auth config
 pnpm typecheck      next typegen, then tsc
 pnpm test           Vitest (starts its own throwaway PostgreSQL 18)
 ```
 
-Staff sign in on the same /sign-in page: owners and managers land on /admin, kitchen on /kitchen. Not built yet: `db:seed:demo` (Phase 9). With `PAYMENT_PROVIDER=mock` (the default) checkout ends on a fake payment page at `/mock-pay/<reference>`, so the whole purchase can be tried locally; it is in-memory, so a dev server restart forgets pending test payments.
+Staff sign in on the same /sign-in page: owners and managers land on /admin, kitchen on /kitchen. With `features.demo_mode` on, the app refuses to start with a real provider, every screen shows a demo banner, and the worker runs a simulated live order stream. With `PAYMENT_PROVIDER=mock` (the default) checkout ends on a fake payment page at `/mock-pay/<reference>`, so the whole purchase can be tried locally; it is in-memory, so a dev server restart forgets pending test payments.
 
 Migrations: tables come from `drizzle-kit generate`, everything else (RLS, functions, triggers) from `drizzle-kit generate --custom`. Apply every migration to the dev database in the same task.
 

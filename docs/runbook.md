@@ -147,3 +147,13 @@ Restore rehearsal, once before launch and after any change to how data is stored
 6. **Never set an agent to Automatic until you have read its suggestions for a while.** Messages to customers still wait for approval until an owner types SEND, and moving the agent off Automatic takes that back.
 7. **Check the queue** (Agents, the suggestions card on the admin home) at the start and end of each service. Suggestions expire after 14 days if nobody decides.
 8. **The worker must be running** for the daily win-back run and for expiring old suggestions.
+
+## 15. Phase 9 checks before running a demo or the new agents
+
+1. **A demo is for a database that holds only fictional data.** Use a fresh database. `pnpm db:seed:demo` refuses if it finds any order that is not a demo order, so it cannot be run by mistake on a live restaurant, but do not point a demo at the live database anyway.
+2. **To run a demo:** set `features.demo_mode` to true in `config/restaurant.ts`; leave every provider on its mock (payment, delivery, notification, model), because **the app will not start otherwise**; run `pnpm setup`, then `pnpm db:seed:demo` (it needs `DATABASE_ADMIN_URL`), then the web app and `pnpm worker`. The worker runs the simulated orders. Turn on `delivery`, `promos` and `ai_agents` too if you want to show them.
+3. **The live orders appear only while the restaurant is open,** like real ones. Outside opening hours the demo shows the seeded history and nothing new.
+4. **Running `seed:demo` again replaces the demo data** (it does not add to it), so use it to reset a showcase. Demo accounts cannot be signed in to; sign in as the owner you created.
+5. **Every screen shows a "This is a demo" banner.** Turn demo mode off and restart to remove it; the demo rows stay until you remove them (they use `@demo.invalid` addresses).
+6. **The abandoned-order gap:** with the mock payment provider, an order a visitor starts and abandons can stay "placed" while the worker runs separately, because the two processes do not share the mock's memory.
+7. **The new agents** (demand planner, menu engineer, delivery watchdog, anomaly detector) are off and suggest-only until an owner switches them on, cost nothing (no model), and only ever suggest. Read what they suggest for a week before using **Ask me first**. Blocking a customer is always a person's decision.

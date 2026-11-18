@@ -529,3 +529,13 @@ Details and rulings are in `docs/phase-8-build-log.md`; the plan is `docs/superp
 - **The spend cap** (`src/agents/llm.ts`): reserve the worst case under an advisory lock, call, replace the reservation with the real cost from the config price table, release it on failure. Pure cost, month and mode rules are in `src/domain/agents/rules.ts`.
 - **Win-back** (`src/agents/winback.ts`) and **support** (`src/agents/support.ts`, `support-facts.ts`, `whatsapp-webhook.ts`) are registered in `src/agents/index.ts`. The worker's `run-agents` job (only with `features.ai_agents`) runs due agents and closes unanswered proposals.
 - **Providers:** `LLMProvider` gains `model` (the key into the price table); `NotificationProvider` gains `parseInbound`. The Anthropic adapter is `src/providers/llm/anthropic.ts`.
+
+## 28. Phase 9 implementation notes
+
+Details and rulings are in `docs/phase-9-build-log.md`; the plan is `docs/superpowers/plans/2026-11-18-phase-9-demo-and-agents.md`. No migration.
+
+- **The four agents** (`src/agents/ops-agents.ts`) are rule-based and built with one `make()` helper from `NUMERIC_AGENT_FIELDS` (`src/agents/settings-fields.ts`), the single table behind each agent's schema, defaults, settings form and screen. Their pure rules are `planDemand` and `stuckReason` in `src/domain/agents/ops.ts`. Executors (`src/agents/ops-executors.ts`): `insight.note` (acknowledge), `menu.archive_item` (hide a dish), `alert.raise` (new alert kinds `delivery_stuck` and `anomaly`) and `customer.block` (customer-facing).
+- **Demo guard:** `validateBoot` (`src/lib/boot.ts`) throws when `features.demo_mode` is on and any provider is not the mock or stub. The stream checks the same again.
+- **`seed:demo`** (`db/seed/demo.ts`, `scripts/seed-demo.mts`): takes a privileged database handle, refuses unless demo mode is on and every order belongs to a demo customer, removes earlier demo data and rebuilds it in one transaction. `src/domain/demo/` holds the shared pure parts (`pickLines`, the demo domain and promo constants); `src/lib/rng.ts` is a seeded random generator.
+- **The stream** (`src/jobs/demo-stream.ts`, scheduled as `demo-orders` in `src/jobs/index.ts` only with demo mode): one tick advances each demo order in the kitchen, advances the mock rider, then may place and pay an order, all through the real order, payment, state-machine and delivery code. It acts only on orders of `@demo.invalid` customers.
+- **Banner:** `src/components/demo-banner.tsx`, rendered by the root layout.

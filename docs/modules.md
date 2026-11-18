@@ -60,3 +60,5 @@ Adapters map the vendor's vocabulary onto the interface's (for example Chowdeck'
 ## What stays fixed
 
 The order state machine, the money module, row-level security and the request context are core. They are not modules, because every feature depends on them.
+
+**Demo (`features.demo_mode`).** Adds the boot guard (no real provider), a banner, `pnpm db:seed:demo` and the worker's `demo-orders` stream. See `docs/phase-9-build-log.md`.
