@@ -17,12 +17,16 @@ export type DeliveryCreated = { providerRef: string; status: DeliveryStatus; tra
 export type DeliveryEvent = { id: string; providerRef: string; status: DeliveryStatus; raw: unknown };
 
 export class DeliveryProviderError extends Error {}
+/** The provider already has a delivery with this reference (a booking that was made but not recorded). */
+export class DuplicateDeliveryError extends DeliveryProviderError {}
 /** The quote is no longer valid. The caller should get a fresh quote and retry once. */
 export class QuoteExpiredError extends DeliveryProviderError {}
 /** The prepaid wallet cannot cover the delivery. */
 export class InsufficientWalletError extends DeliveryProviderError {}
 
 export interface DeliveryProvider {
+  /** Stored with every delivery, so records say which provider booked them. */
+  readonly name: string;
   getQuote(input: DeliveryQuoteInput): Promise<DeliveryQuote>;
   createDelivery(input: DeliveryCreateInput): Promise<DeliveryCreated>;
   getDelivery(providerRef: string): Promise<{ status: DeliveryStatus; raw: unknown }>;

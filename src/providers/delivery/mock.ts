@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { WebhookSignatureError } from "../payment/types";
 import {
   DeliveryProviderError,
+  DuplicateDeliveryError,
   InsufficientWalletError,
   QuoteExpiredError,
   type DeliveryCreateInput,
@@ -26,6 +27,10 @@ export function signMockDeliveryWebhook(rawBody: string): string {
 export class MockDeliveryProvider implements DeliveryProvider {
   private wallet: number;
   private readonly fee: number;
+  readonly name: string = "mock";
+  /** Every reference a delivery was booked with, in order. For tests. */
+  readonly created: string[] = [];
+  private readonly byReference = new Map<string, string>();
   private failNext = false;
   private seq = 0;
   private readonly quotes = new Map<string, { feeMinor: number; expired: boolean }>();
@@ -67,22 +72,32 @@ export class MockDeliveryProvider implements DeliveryProvider {
       this.failNext = false;
       throw new DeliveryProviderError("mock provider failure");
     }
+    if (this.byReference.has(input.reference)) throw new DuplicateDeliveryError("Possible duplicate order. Please send unique reference");
     const quote = this.quotes.get(input.quoteId);
     if (!quote || quote.expired) throw new QuoteExpiredError("This delivery fee has expired.");
     if (this.wallet < quote.feeMinor) throw new InsufficientWalletError("Insufficient funds in wallet.");
     this.wallet -= quote.feeMinor;
     const providerRef = `mock-del-${++this.seq}`;
     this.deliveries.set(providerRef, { status: "pending", feeMinor: quote.feeMinor });
+    this.byReference.set(input.reference, providerRef);
+    this.created.push(input.reference);
     return { providerRef, status: "pending", trackingUrl: `https://mock-delivery.invalid/track/${providerRef}`, costMinor: quote.feeMinor };
   }
 
+  /** A delivery can be looked up by the provider's id or by the reference we booked it with. */
+  private resolve(ref: string): string {
+    return this.byReference.get(ref) ?? ref;
+  }
+
   async getDelivery(providerRef: string) {
+    providerRef = this.resolve(providerRef);
     const d = this.deliveries.get(providerRef);
     if (!d) throw new DeliveryProviderError(`unknown delivery ${providerRef}`);
     return { status: d.status, raw: { reference: providerRef, status: d.status } };
   }
 
   async cancel(providerRef: string, _reason: string) {
+    providerRef = this.resolve(providerRef);
     const d = this.deliveries.get(providerRef);
     if (!d) throw new DeliveryProviderError(`unknown delivery ${providerRef}`);
     if (d.status === "delivered" || d.status === "cancelled") throw new DeliveryProviderError(`cannot cancel a ${d.status} delivery`);
