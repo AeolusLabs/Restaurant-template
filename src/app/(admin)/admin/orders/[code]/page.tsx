@@ -184,7 +184,7 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
                   <strong>Last problem:</strong> {delivery.failureReason}
                 </p>
               )}
-              {delivery.trackingUrl && (
+              {delivery.trackingUrl && !["delivered", "cancelled", "failed"].includes(delivery.status) && (
                 <a href={delivery.trackingUrl} target="_blank" rel="noopener noreferrer" className={button.secondary}>
                   Open the rider&apos;s tracking page
                 </a>

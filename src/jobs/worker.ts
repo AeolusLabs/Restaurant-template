@@ -1,6 +1,7 @@
 // A small job loop for the worker service. Each job runs on its own interval, never overlaps itself, and a
 // failure in one job is logged without stopping the others. pg-boss replaces this when a job needs retries
-// and backoff (Phase 4); the job functions themselves do not change (see the Phase 2 plan, ruling 4).
+// and backoff. Phase 4 did not need it: deliveries are database rows with their own attempts and backoff (see the
+// Phase 4 plan, ruling 1), so the loop below is still all the worker is.
 
 export type Job = { name: string; everyMs: number; run: () => Promise<unknown> };
 export type JobLog = { error: (message: string) => void };

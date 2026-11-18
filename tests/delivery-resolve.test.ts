@@ -139,5 +139,7 @@ describe("cancelling a delivery order", () => {
     expect(await cancelAndRefund(ctx, s.code, s.r())).toEqual({ refunded: true });
     expect((await order(s.orderId)).status).toBe("refunded");
     expect(await alertCount(s.orderId, "delivery_failed")).toBe(1);
+    const payload = (await admin().query(`select payload from alerts where order_id = $1 and kind = 'delivery_failed'`, [s.orderId])).rows[0].payload;
+    expect(payload).toMatchObject({ action: "cancel_rider", providerRef: expect.any(String) });
   });
 });

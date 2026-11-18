@@ -21,7 +21,7 @@ async function Intro() {
           <span aria-hidden="true">{status.open ? "● " : "○ "}</span>
           {status.label}
         </span>
-        {c.features.pickup && " · Order for pickup"}
+        {(c.features.pickup || c.features.delivery) && ` · Order for ${[c.features.pickup && "pickup", c.features.delivery && "delivery"].filter(Boolean).join(" or ")}`}
       </p>
     </div>
   );

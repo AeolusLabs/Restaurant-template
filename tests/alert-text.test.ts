@@ -28,3 +28,14 @@ describe("alertText", () => {
     expect(alertText("wallet_low", { reason: "x" })).toBe(alertText("wallet_low"));
   });
 });
+
+describe("alertText for a rider that could not be cancelled", () => {
+  const payload = { action: "cancel_rider", providerRef: "REF-123", reason: "The order was cancelled but the rider could not be cancelled." };
+
+  test("tells the manager to cancel the rider with the provider, with the booking reference, and not to retry", () => {
+    const t = alertText("delivery_failed", payload);
+    expect(t).toContain("REF-123");
+    expect(t).toMatch(/cancel the rider/i);
+    expect(t).not.toMatch(/retry/i);
+  });
+});

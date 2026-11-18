@@ -1,14 +1,48 @@
+import { restaurantConfig } from "../../config/restaurant";
+import type { RestaurantConfig } from "../../config/schema";
+import { dispatchQueued, queueDeliveries } from "@/delivery/dispatch";
+import { syncDeliveries } from "@/delivery/sync";
+import { checkWallet } from "@/delivery/wallet";
 import { expireUnpaidOrders } from "./expire-unpaid";
 import type { Job } from "./worker";
 
-/** The jobs the worker service runs. Add a line here to schedule another. */
-export const jobs: Job[] = [
-  {
-    name: "expire-unpaid",
-    everyMs: 60_000,
-    run: async () => {
-      const r = await expireUnpaidOrders();
-      if (r.expired || r.paid || r.skipped) console.log(`expire-unpaid: ${r.expired} expired, ${r.paid} paid late, ${r.skipped} skipped`);
+/** The jobs the worker service runs. Add a line here to schedule another. Delivery jobs run only when delivery is on. */
+export function buildJobs(cfg: RestaurantConfig = restaurantConfig): Job[] {
+  const jobs: Job[] = [
+    {
+      name: "expire-unpaid",
+      everyMs: 60_000,
+      run: async () => {
+        const r = await expireUnpaidOrders();
+        if (r.expired || r.paid || r.skipped) console.log(`expire-unpaid: ${r.expired} expired, ${r.paid} paid late, ${r.skipped} skipped`);
+      },
     },
-  },
-];
+  ];
+  if (cfg.features.delivery) {
+    jobs.push(
+      {
+        // Queues a delivery for each order that reached the dispatch status, then books the ones that are due.
+        name: "dispatch-deliveries",
+        everyMs: 15_000,
+        run: async () => {
+          const queued = await queueDeliveries({ config: cfg });
+          const r = await dispatchQueued({ config: cfg });
+          if (queued || r.booked || r.retried || r.failed) console.log(`dispatch-deliveries: ${queued} queued, ${r.booked} booked, ${r.retried} to retry, ${r.failed} failed`);
+        },
+      },
+      {
+        // Polling is the primary source of delivery status: Chowdeck's webhooks are unconfirmed.
+        name: "sync-deliveries",
+        everyMs: 30_000,
+        run: async () => {
+          const r = await syncDeliveries();
+          if (r.errors) console.log(`sync-deliveries: ${r.checked} checked, ${r.errors} could not be read`);
+        },
+      },
+      { name: "check-wallet", everyMs: 5 * 60_000, run: () => checkWallet({ config: cfg }) },
+    );
+  }
+  return jobs;
+}
+
+export const jobs: Job[] = buildJobs();

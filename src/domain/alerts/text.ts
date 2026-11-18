@@ -10,6 +10,11 @@ export function alertText(kind: string, payload: Record<string, unknown> = {}): 
     case "refund_failed":
       return "A refund did not go through. Open the order and try the refund again.";
     case "delivery_failed": {
+      // The order is already cancelled and refunded; only the rider is left to stop.
+      if (payload.action === "cancel_rider") {
+        const ref = typeof payload.providerRef === "string" && payload.providerRef ? ` (booking ${payload.providerRef})` : "";
+        return `An order was cancelled and refunded, but its rider could not be cancelled. Cancel the rider with the delivery provider${ref} so nobody turns up.`;
+      }
       const base = "A delivery could not be arranged or finished. Open the order, then retry the delivery or cancel and refund it.";
       return typeof payload.reason === "string" && payload.reason ? `${base} Reason: ${payload.reason}` : base;
     }

@@ -69,7 +69,7 @@ export async function cancelDeliveryFor(orderId: string, publicCode: string, dep
           await provider.cancel(d.providerRef, "Order cancelled by the restaurant");
         } catch (err) {
           console.error(`could not cancel delivery ${d.providerRef}:`, err instanceof Error ? err.message : err);
-          await raiseAlert(tx, { kind: "delivery_failed", severity: "critical", orderId, payload: { reason: "The order was cancelled but the rider could not be cancelled. Cancel it with the delivery provider.", providerRef: d.providerRef, order: publicCode } });
+          await raiseAlert(tx, { kind: "delivery_failed", severity: "critical", orderId, payload: { action: "cancel_rider", reason: "The order was cancelled but the rider could not be cancelled. Cancel it with the delivery provider.", providerRef: d.providerRef, order: publicCode } });
         }
       }
       await tx.update(deliveries).set({ status: "cancelled", failureReason: "order cancelled", updatedAt: new Date() }).where(eq(deliveries.id, d.id));
