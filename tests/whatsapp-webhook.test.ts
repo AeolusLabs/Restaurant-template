@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, test } from "vitest";
 import { restaurantConfig } from "../config/restaurant";
 import type { RestaurantConfig } from "../config/schema";
@@ -11,6 +12,7 @@ import { StubNotificationProvider, signStubInbound } from "../src/providers/noti
 import { admin, closeFixtures } from "./helpers/fixtures";
 
 const urls = inject("dbUrls");
+process.env.STUB_INBOUND_SECRET = "test-only-inbound-secret-0123456789"; // the stub holds no secret of its own
 const NOW = new Date("2035-06-15T12:00:00Z");
 const config = (agents = true): RestaurantConfig => ({
   ...restaurantConfig,
@@ -51,6 +53,25 @@ const post = (m: unknown, d = deps(), sig?: string) => {
 };
 const runs = async (id: string) => (await admin().query(`select r.status, r.trigger, (select count(*) from agent_proposals p where p.run_id = r.id)::int as proposals from agent_runs r where r.agent_key = $1 and r.id in (select run_id from agent_proposals where dedupe_key = $2) `, [SUPPORT_KEY, `support:${id}`])).rows;
 const events = async (id: string) => (await admin().query(`select payload from webhook_events where provider = 'whatsapp' and event_id = $1`, [id])).rows;
+
+describe("the stub's inbound secret", () => {
+  test("with no secret configured, no message is accepted, even one signed with the old built-in value", async () => {
+    const saved = process.env.STUB_INBOUND_SECRET;
+    delete process.env.STUB_INBOUND_SECRET;
+    try {
+      const raw = JSON.stringify(msg());
+      const oldSig = createHmac("sha256", "stub-whatsapp-inbound-secret").update(raw).digest("hex");
+      expect(await post(raw, deps(), oldSig)).toEqual({ status: 401, outcome: "bad_signature" });
+    } finally {
+      process.env.STUB_INBOUND_SECRET = saved;
+    }
+  });
+
+  test("a message signed with a different secret is refused", async () => {
+    const raw = JSON.stringify(msg());
+    expect(await post(raw, deps(), signStubInbound(raw, "some-other-secret-value-0123456789"))).toEqual({ status: 401, outcome: "bad_signature" });
+  });
+});
 
 describe("an inbound WhatsApp message", () => {
   test("a signed message is accepted, runs the support agent, and leaves a proposal", async () => {

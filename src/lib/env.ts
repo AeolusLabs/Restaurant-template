@@ -23,6 +23,8 @@ const schema = z
     CHOWDECK_WEBHOOK_SECRET: z.string().optional(),
 
     NOTIFICATION_PROVIDER: z.enum(["stub"]).default("stub"),
+    // The stub only accepts inbound WhatsApp messages signed with this. Unset means it accepts none. Use a long random value; a real adapter replaces it.
+    STUB_INBOUND_SECRET: z.string().min(16).optional(),
     // Add an adapter name here and in src/providers/index.ts to send real email (docs/modules.md).
     EMAIL_PROVIDER: z.enum(["mock"]).default("mock"),
     LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
