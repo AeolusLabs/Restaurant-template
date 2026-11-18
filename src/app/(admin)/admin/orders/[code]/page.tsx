@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/staff/status-badge";
 import { button, card, field, label } from "@/components/ui";
 import { listOpenAlerts } from "@/db/alerts";
 import { getOrderForStaff } from "@/db/staff-orders";
+import { alertText } from "@/domain/alerts/text";
 import { canRefund, nextActions } from "@/domain/orders/actions";
 import type { OrderStatus } from "@/domain/orders/statuses";
 import { dateTime, money } from "@/lib/format";
@@ -205,14 +206,6 @@ async function Detail({ params, searchParams }: { params: PageProps<"/admin/orde
     </div>
   );
 }
-
-const alertText = (kind: string) =>
-  ({
-    payment_mismatch: "A payment came in for the wrong amount and was not applied. Check the payment provider and refund it if the money was taken.",
-    payment_late: "A payment arrived after this order was cancelled. The customer has paid for nothing: refund them.",
-    payment_duplicate: "The customer paid twice. Refund the extra payment from the payment provider.",
-    refund_failed: "A refund did not go through. Try the refund again from the actions above.",
-  })[kind] ?? kind;
 
 export default function OrderDetailPage(props: PageProps<"/admin/orders/[code]">) {
   return (

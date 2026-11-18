@@ -21,9 +21,10 @@ describe("the order_events trigger", () => {
       const { userId } = await makeUser("customer");
       const { orderId } = await makeOrder(userId, "placed");
       await transitionOrder({ orderId, to: "paid", actor: { type: "system" } }, { systemUrl: urls.system });
-      await vi.waitFor(() => expect(got.length).toBeGreaterThanOrEqual(1), { timeout: 3000 });
-      const mine = got.map((g) => JSON.parse(g)).filter((m) => m.order_id === orderId);
-      expect(mine).toEqual([{ order_id: orderId, to: "paid" }]);
+      // Other test files change orders in the same database, so wait for this order's own message.
+      const mine = () => got.map((g) => JSON.parse(g)).filter((m) => m.order_id === orderId);
+      await vi.waitFor(() => expect(mine()).toHaveLength(1), { timeout: 5000 });
+      expect(mine()).toEqual([{ order_id: orderId, to: "paid" }]);
     } finally {
       await listener.stop();
     }
