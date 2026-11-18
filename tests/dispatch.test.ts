@@ -3,6 +3,7 @@ import { restaurantConfig } from "../config/restaurant";
 import type { RestaurantConfig } from "../config/schema";
 import { closePools } from "../src/db/context";
 import { MAX_ATTEMPTS, dispatchQueued, queueDeliveries } from "../src/delivery/dispatch";
+import { checkWallet } from "../src/delivery/wallet";
 import { MockDeliveryProvider } from "../src/providers/delivery/mock";
 import { QuoteExpiredError } from "../src/providers/delivery/types";
 import type { OrderStatus } from "../src/domain/orders/statuses";
@@ -210,5 +211,48 @@ describe("dispatchQueued", () => {
 
   test("the quote error type is recognisable", () => {
     expect(new QuoteExpiredError("x")).toBeInstanceOf(Error);
+  });
+});
+
+describe("checkWallet", () => {
+  const openWalletAlerts = async () => (await admin().query(`select count(*)::int as n from alerts where kind = 'wallet_low' and resolved_at is null`)).rows[0].n as number;
+  const reset = () => admin().query(`update alerts set resolved_at = now() where kind = 'wallet_low' and resolved_at is null`);
+  const low = restaurantConfig.delivery.lowWalletMinor;
+  const run = (p: MockDeliveryProvider) => checkWallet({ provider: p, systemUrl: urls.system, config: config() });
+
+  test("a low balance raises one alert however often it is checked, and is recorded each time", async () => {
+    await reset();
+    const p = new MockDeliveryProvider({ walletMinor: low - 1 });
+    const before = (await admin().query(`select count(*)::int as n from wallet_snapshots`)).rows[0].n as number;
+    expect(await run(p)).toEqual({ checked: true, balanceMinor: low - 1, low: true });
+    await run(p);
+    expect(await openWalletAlerts()).toBe(1);
+    expect((await admin().query(`select count(*)::int as n from wallet_snapshots`)).rows[0].n as number).toBe(before + 2);
+  });
+
+  test("a balance at the threshold is healthy and closes the alert", async () => {
+    await reset();
+    await run(new MockDeliveryProvider({ walletMinor: 0 }));
+    expect(await openWalletAlerts()).toBe(1);
+    expect(await run(new MockDeliveryProvider({ walletMinor: low }))).toMatchObject({ checked: true, low: false });
+    expect(await openWalletAlerts()).toBe(0);
+  });
+
+  test("when the provider cannot be reached nothing changes and no alert is raised or closed", async () => {
+    await reset();
+    await run(new MockDeliveryProvider({ walletMinor: 0 }));
+    const p = new MockDeliveryProvider({ walletMinor: 10_000_000 });
+    p.getWalletBalance = async () => {
+      throw new Error("provider down");
+    };
+    expect(await run(p)).toEqual({ checked: false });
+    expect(await openWalletAlerts()).toBe(1);
+  });
+
+  test("nothing is checked when delivery is switched off", async () => {
+    await reset();
+    const off = { ...config(), features: { ...restaurantConfig.features, delivery: false } };
+    expect(await checkWallet({ provider: new MockDeliveryProvider({ walletMinor: 0 }), systemUrl: urls.system, config: off })).toEqual({ checked: false });
+    expect(await openWalletAlerts()).toBe(0);
   });
 });
