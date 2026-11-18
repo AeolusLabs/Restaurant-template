@@ -1,4 +1,5 @@
 import type { ProblemCode } from "@/domain/pricing/price-cart";
+import { promoText } from "@/domain/promos/rules";
 
 /** What to tell the customer when a line in their cart can no longer be ordered. */
 export function problemText(code: ProblemCode): string {
@@ -17,5 +18,9 @@ export function problemText(code: ProblemCode): string {
       return "This quantity cannot be ordered. Change it to continue.";
     case "empty_cart":
       return "Your cart is empty.";
+    case "promo_below_minimum":
+      return promoText("below_minimum");
+    case "promo_free_order":
+      return promoText("free_order");
   }
 }

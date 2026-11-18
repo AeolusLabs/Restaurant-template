@@ -1,4 +1,5 @@
 import { applyBps, assertMinor, extractInclusiveBps } from "../../lib/money";
+import { applyPromo, type PromoTerms } from "../promos/rules";
 
 // Prices a cart from menu data the server loaded. The browser never sends a price: a cart line is only
 // an item id, modifier ids and a quantity. Pure: no database, no HTTP. See docs/ARCHITECTURE.md section 6
@@ -38,7 +39,9 @@ export type ProblemCode =
   | "quantity"
   | "modifier_invalid"
   | "modifier_unavailable"
-  | "selection_count";
+  | "selection_count"
+  | "promo_below_minimum"
+  | "promo_free_order";
 /** index is the cart line the problem belongs to, or -1 for the cart as a whole. */
 export type LineProblem = { index: number; code: ProblemCode };
 
@@ -46,10 +49,16 @@ export type PriceResult =
   | {
       ok: true;
       lines: PricedLine[];
+      /** The items before any discount. */
       subtotalMinor: number;
+      /** What a percentage or fixed promo took off the items. Charges are worked out after it. */
+      discountMinor: number;
       serviceChargeMinor: number;
       taxMinor: number;
+      /** What the customer pays for delivery: zero when a free-delivery promo waived it. */
       deliveryFeeMinor: number;
+      /** What a free-delivery promo waived, for the record. */
+      deliveryWaivedMinor: number;
       totalMinor: number;
     }
   | { ok: false; problems: LineProblem[] };
@@ -95,9 +104,10 @@ function priceLine(line: CartLine, item: PricingItem | undefined): PricedLine | 
 
 /**
  * Prices the cart. `deliveryFeeMinor` is the zone's fee for a delivery order (from config, never from the
- * browser). It is added after charges and is not taxed.
+ * browser). It is added after charges and is not taxed. An applied promo comes off the items before charges are
+ * worked out, or waives the delivery fee.
  */
-export function priceCart(lines: readonly CartLine[], menu: readonly PricingItem[], charges: Charges, deliveryFeeMinor = 0): PriceResult {
+export function priceCart(lines: readonly CartLine[], menu: readonly PricingItem[], charges: Charges, deliveryFeeMinor = 0, promo?: PromoTerms): PriceResult {
   assertMinor(deliveryFeeMinor);
   if (deliveryFeeMinor < 0) throw new RangeError("The delivery fee cannot be negative");
   if (lines.length === 0) return { ok: false, problems: [{ index: -1, code: "empty_cart" }] };
@@ -115,20 +125,33 @@ export function priceCart(lines: readonly CartLine[], menu: readonly PricingItem
   const subtotalMinor = priced.reduce((sum, l) => sum + l.lineTotalMinor, 0);
   assertMinor(subtotalMinor);
 
+  let discountMinor = 0;
+  let deliveryWaivedMinor = 0;
+  if (promo) {
+    const applied = applyPromo(promo, subtotalMinor, deliveryFeeMinor);
+    if (!applied.ok) return { ok: false, problems: [{ index: -1, code: "promo_below_minimum" }] };
+    discountMinor = applied.itemDiscountMinor;
+    deliveryWaivedMinor = applied.deliveryWaivedMinor;
+  }
+  const chargeable = subtotalMinor - discountMinor;
+  const feeMinor = deliveryFeeMinor - deliveryWaivedMinor;
+
   let serviceChargeMinor: number;
   let taxMinor: number;
   let totalMinor: number;
   if (charges.pricesIncludeCharges) {
     // The price already contains both. Tax sits on top of the service charge, so take it out first.
-    taxMinor = extractInclusiveBps(subtotalMinor, charges.taxBps);
-    serviceChargeMinor = extractInclusiveBps(subtotalMinor - taxMinor, charges.serviceChargeBps);
-    totalMinor = subtotalMinor;
+    taxMinor = extractInclusiveBps(chargeable, charges.taxBps);
+    serviceChargeMinor = extractInclusiveBps(chargeable - taxMinor, charges.serviceChargeBps);
+    totalMinor = chargeable;
   } else {
-    serviceChargeMinor = applyBps(subtotalMinor, charges.serviceChargeBps);
-    taxMinor = applyBps(subtotalMinor + serviceChargeMinor, charges.taxBps);
-    totalMinor = subtotalMinor + serviceChargeMinor + taxMinor;
+    serviceChargeMinor = applyBps(chargeable, charges.serviceChargeBps);
+    taxMinor = applyBps(chargeable + serviceChargeMinor, charges.taxBps);
+    totalMinor = chargeable + serviceChargeMinor + taxMinor;
   }
-  totalMinor += deliveryFeeMinor;
+  totalMinor += feeMinor;
   assertMinor(totalMinor);
-  return { ok: true, lines: priced, subtotalMinor, serviceChargeMinor, taxMinor, deliveryFeeMinor, totalMinor };
+  // Nothing could be paid for a free order, so a promo that makes one is refused.
+  if (promo && totalMinor <= 0) return { ok: false, problems: [{ index: -1, code: "promo_free_order" }] };
+  return { ok: true, lines: priced, subtotalMinor, discountMinor, serviceChargeMinor, taxMinor, deliveryFeeMinor: feeMinor, deliveryWaivedMinor, totalMinor };
 }

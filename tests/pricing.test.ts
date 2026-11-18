@@ -221,3 +221,68 @@ describe("priceCart: delivery fee", () => {
     expect(() => priceCart(lines, menu, none, 1.5)).toThrow(RangeError);
   });
 });
+
+describe("priceCart: promo", () => {
+  const lines = [{ itemId: "item-water", quantity: 20, modifierIds: [] }]; // items 1,000,000
+  const exclusive = { serviceChargeBps: 500, taxBps: 750, pricesIncludeCharges: false };
+  const inclusive = { serviceChargeBps: 500, taxBps: 750, pricesIncludeCharges: true };
+  const ten = { kind: "percent" as const, value: 1000, minOrderMinor: 0, maxDiscountMinor: null };
+
+  test("with no promo nothing changes", () => {
+    const r = priceCart(lines, menu, exclusive, 150_000);
+    expect(r.ok && [r.discountMinor, r.deliveryWaivedMinor]).toEqual([0, 0]);
+  });
+
+  test("charges are worked out on the discounted items, so no tax is paid on the discount", () => {
+    const r = priceCart(lines, menu, exclusive, 0, ten); // items after discount 900,000
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.subtotalMinor).toBe(1_000_000); // still the undiscounted items
+    expect(r.discountMinor).toBe(100_000);
+    expect(r.serviceChargeMinor).toBe(45_000); // 5% of 900,000
+    expect(r.taxMinor).toBe(70_875); // 7.5% of 945,000
+    expect(r.totalMinor).toBe(900_000 + 45_000 + 70_875);
+  });
+
+  test("when prices include charges the total is the discounted items plus the fee, and the charges inside it shrink", () => {
+    const r = priceCart(lines, menu, inclusive, 150_000, ten);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.totalMinor).toBe(900_000 + 150_000);
+    const full = priceCart(lines, menu, inclusive, 150_000);
+    expect(full.ok && r.taxMinor < full.taxMinor).toBe(true);
+  });
+
+  test("the fee is added after the discount and is never discounted by a percentage", () => {
+    const r = priceCart(lines, menu, inclusive, 150_000, ten);
+    expect(r.ok && r.deliveryFeeMinor).toBe(150_000);
+  });
+
+  test("free delivery sets the fee to nothing and says how much was waived", () => {
+    const r = priceCart(lines, menu, inclusive, 150_000, { kind: "free_delivery", value: null, minOrderMinor: 0, maxDiscountMinor: null });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect([r.deliveryFeeMinor, r.deliveryWaivedMinor, r.discountMinor, r.totalMinor]).toEqual([0, 150_000, 0, 1_000_000]);
+  });
+
+  test("below the minimum order the cart cannot be priced with the promo", () => {
+    const r = priceCart(lines, menu, inclusive, 0, { ...ten, minOrderMinor: 1_000_001 });
+    expect(r).toEqual({ ok: false, problems: [{ index: -1, code: "promo_below_minimum" }] });
+  });
+
+  test("a promo that would make the order free is refused, because nothing could be paid", () => {
+    const r = priceCart(lines, menu, inclusive, 0, { kind: "fixed", value: 5_000_000, minOrderMinor: 0, maxDiscountMinor: null });
+    expect(r).toEqual({ ok: false, problems: [{ index: -1, code: "promo_free_order" }] });
+  });
+
+  test("a fixed discount on a delivery order still leaves the fee to pay", () => {
+    const r = priceCart(lines, menu, inclusive, 150_000, { kind: "fixed", value: 5_000_000, minOrderMinor: 0, maxDiscountMinor: null });
+    expect(r.ok && r.totalMinor).toBe(150_000);
+  });
+
+  test("cart problems come before promo problems", () => {
+    const r = priceCart([{ itemId: "item-sold", quantity: 1, modifierIds: [] }], menu, none, 0, { ...ten, minOrderMinor: 9_999_999 });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.problems[0].code).toBe("sold_out");
+  });
+});
