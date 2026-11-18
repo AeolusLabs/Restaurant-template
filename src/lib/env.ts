@@ -25,7 +25,11 @@ const schema = z
     NOTIFICATION_PROVIDER: z.enum(["stub"]).default("stub"),
     // Add an adapter name here and in src/providers/index.ts to send real email (docs/modules.md).
     EMAIL_PROVIDER: z.enum(["mock"]).default("mock"),
-    LLM_PROVIDER: z.enum(["mock"]).default("mock"),
+    LLM_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
+    ANTHROPIC_API_KEY: z.string().optional(),
+    // No default: the model decides what the agents cost, so it is chosen on purpose and priced in config (agents.modelPrices).
+    ANTHROPIC_MODEL: z.string().optional(),
+    ANTHROPIC_BASE_URL: z.string().optional(),
 
     STORAGE_PROVIDER: z.enum(["memory", "s3"]).default("memory"),
     S3_ENDPOINT: z.string().optional(),
@@ -49,6 +53,7 @@ const schema = z
     };
     need(env.PAYMENT_PROVIDER === "paystack", ["PAYSTACK_SECRET_KEY"]);
     need(env.DELIVERY_PROVIDER === "chowdeck", ["CHOWDECK_API_KEY", "CHOWDECK_BASE_URL"]);
+    need(env.LLM_PROVIDER === "anthropic", ["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
     need(env.STORAGE_PROVIDER === "s3", ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"]);
   });
 

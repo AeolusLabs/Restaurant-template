@@ -20,3 +20,6 @@ export interface LLMProvider {
   readonly model: string;
   complete<T>(request: LLMRequest<T>): Promise<{ output: T; usage: LLMUsage }>;
 }
+
+/** A model call failed: refused, unreachable, cut off, or an answer that does not fit the schema. */
+export class LLMProviderError extends Error {}

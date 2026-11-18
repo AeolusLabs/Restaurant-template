@@ -5,6 +5,7 @@ import { requireStaff } from "@/auth/customer";
 import { Notice } from "@/components/staff/notice";
 import { button, card } from "@/components/ui";
 import { listOpenAlerts } from "@/db/alerts";
+import { listProposals } from "@/agents/admin";
 import { listOrdersForStaff } from "@/db/staff-orders";
 import { latestWalletSnapshot } from "@/db/wallet";
 import { alertText } from "@/domain/alerts/text";
@@ -14,10 +15,11 @@ import { resolveAlertAction } from "./actions";
 async function Home({ searchParams }: { searchParams: PageProps<"/admin">["searchParams"] }) {
   const params = await searchParams;
   const { ctx, name } = await requireStaff(["owner", "manager"], "/admin");
-  const [alerts, waiting, wallet] = await Promise.all([
+  const [alerts, waiting, wallet, suggestions] = await Promise.all([
     listOpenAlerts(ctx),
     listOrdersForStaff(ctx, { statuses: ["paid"], limit: 100 }),
     c.features.delivery ? latestWalletSnapshot(ctx) : null,
+    c.features.ai_agents ? listProposals(ctx, "waiting") : [],
   ]);
   const walletLow = wallet !== null && wallet.balanceMinor < c.delivery.lowWalletMinor;
 
@@ -30,12 +32,21 @@ async function Home({ searchParams }: { searchParams: PageProps<"/admin">["searc
         <h2 id="attention" className="text-xl font-bold">
           Needs attention
         </h2>
-        {alerts.length === 0 && waiting.length === 0 && <p className={`${card} p-5 text-muted`}>Nothing needs you right now.</p>}
+        {alerts.length === 0 && waiting.length === 0 && suggestions.length === 0 && <p className={`${card} p-5 text-muted`}>Nothing needs you right now.</p>}
 
         {waiting.length > 0 && (
           <Link href="/admin/orders?view=needs" className={`${card} flex flex-wrap items-center justify-between gap-3 border-2 border-brand p-4 hover:bg-brand-soft`}>
             <span className="text-lg font-semibold">
               {waiting.length} {waiting.length === 1 ? "order is" : "orders are"} paid and waiting to be accepted
+            </span>
+            <span className="font-semibold text-brand">See them</span>
+          </Link>
+        )}
+
+        {suggestions.length > 0 && (
+          <Link href="/admin/agents/proposals" className={`${card} flex flex-wrap items-center justify-between gap-3 border-2 border-brand p-4 hover:bg-brand-soft`}>
+            <span className="text-lg font-semibold">
+              {suggestions.length} {suggestions.length === 1 ? "suggestion from an agent is" : "suggestions from the agents are"} waiting for you
             </span>
             <span className="font-semibold text-brand">See them</span>
           </Link>

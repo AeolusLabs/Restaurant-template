@@ -46,6 +46,12 @@ describe("loadEnv", () => {
     ).toThrow(/CHOWDECK_BASE_URL/);
   });
 
+  test("requires a key and a model, with no default model, when LLM_PROVIDER is anthropic", () => {
+    expect(() => loadEnv({ ...valid(), LLM_PROVIDER: "anthropic" })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() => loadEnv({ ...valid(), LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "k" })).toThrow(/ANTHROPIC_MODEL/);
+    expect(loadEnv({ ...valid(), LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "k", ANTHROPIC_MODEL: "m" }).LLM_PROVIDER).toBe("anthropic");
+  });
+
   test("names every missing required variable in one error", () => {
     expect(() => loadEnv({})).toThrow(/DATABASE_URL[\s\S]*BETTER_AUTH_SECRET/);
   });

@@ -7,6 +7,7 @@ import { WebhookSignatureError } from "../src/providers/payment/types";
 import { PaystackProvider } from "../src/providers/payment/paystack";
 import { MockPaymentProvider, signMockWebhook } from "../src/providers/payment/mock";
 import { ChowdeckProvider } from "../src/providers/delivery/chowdeck";
+import { AnthropicProvider } from "../src/providers/llm/anthropic";
 import { MockDeliveryProvider, signMockDeliveryWebhook } from "../src/providers/delivery/mock";
 import { DeliveryProviderError, InsufficientWalletError, QuoteExpiredError, type DeliveryQuoteInput } from "../src/providers/delivery/types";
 import { StubNotificationProvider } from "../src/providers/notification/stub";
@@ -35,6 +36,13 @@ describe("provider registry", () => {
   test("selecting paystack builds the Paystack adapter from the secret key", () => {
     const env = loadEnv({ ...baseEnv, PAYMENT_PROVIDER: "paystack", PAYSTACK_SECRET_KEY: "sk_test_x" });
     expect(getProviders(env).payment).toBeInstanceOf(PaystackProvider);
+  });
+
+  test("selecting anthropic builds the Anthropic adapter from the key and model", () => {
+    const env = loadEnv({ ...baseEnv, LLM_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "k", ANTHROPIC_MODEL: "some-model" });
+    const llm = getProviders(env).llm;
+    expect(llm).toBeInstanceOf(AnthropicProvider);
+    expect(llm.model).toBe("some-model");
   });
 
   test("selecting chowdeck builds the Chowdeck adapter from the key and base URL", () => {

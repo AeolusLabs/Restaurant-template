@@ -22,7 +22,7 @@ describe("architecture rules", () => {
     const forbidden = /^(pg|next|drizzle-orm|better-auth|@better-auth)(\/|$)|^@\/(db|auth)(\/|$)|^@\/providers\/(?!.*\/types$)/;
     const offenders = walk(path.join(root, "src/domain")).flatMap((f) =>
       importsOf(f)
-        .filter((i) => forbidden.test(i) || /\/(paystack|chowdeck|s3|mock|stub|memory)$/.test(i))
+        .filter((i) => forbidden.test(i) || /\/(paystack|chowdeck|anthropic|s3|mock|stub|memory)$/.test(i))
         .map((i) => `${rel(f)} imports ${i}`),
     );
     expect(offenders).toEqual([]);
@@ -47,8 +47,8 @@ describe("architecture rules", () => {
   });
 
   test("screens, actions, jobs and the db layer reach a provider only through @/providers, never an implementation file", () => {
-    const impl = /^@\/providers\/[^/]+\/(paystack|chowdeck|s3|mock|stub|memory)$/;
-    const offenders = ["app", "components", "payments", "jobs", "account", "db", "auth", "lib"].flatMap((dir) =>
+    const impl = /^@\/providers\/[^/]+\/(paystack|chowdeck|anthropic|s3|mock|stub|memory)$/;
+    const offenders = ["app", "components", "payments", "jobs", "account", "db", "auth", "lib", "agents", "delivery", "qr"].flatMap((dir) =>
       walk(path.join(root, "src", dir)).flatMap((f) => importsOf(f).filter((i) => impl.test(i)).map((i) => rel(f) + " imports " + i)),
     );
     expect(offenders).toEqual([]);
