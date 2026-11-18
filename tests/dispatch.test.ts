@@ -15,7 +15,7 @@ const config = (dispatchOn: RestaurantConfig["delivery"]["dispatchOn"] = "accept
   delivery: { ...restaurantConfig.delivery, dispatchOn },
 });
 // Other test files leave deliveries in the shared database, so each run is limited to this test's own orders.
-const deps = (provider: MockDeliveryProvider, only: string[], over: Record<string, unknown> = {}) => ({ provider, systemUrl: urls.system, config: config(), now: new Date(), onlyOrderIds: only, ...over });
+const deps = (provider: MockDeliveryProvider, only: string[], over: Record<string, unknown> = {}) => ({ provider, systemUrl: urls.system, config: config(), now: new Date(Date.now() + 5_000), onlyOrderIds: only, ...over });
 afterAll(async () => {
   await closePools();
   await closeFixtures();
@@ -126,7 +126,7 @@ describe("dispatchQueued", () => {
     const o = await deliveryOrder();
     await queueDeliveries(deps(p, [o.orderId]));
     p.failNextCreate();
-    const now = new Date();
+    const now = new Date(Date.now() + 5_000); // ahead of the database-stamped due time
     await dispatchQueued(deps(p, [o.orderId], { now }));
     const r = await row(o.orderId);
     expect(r).toMatchObject({ status: "queued", attempts: 1 });
@@ -144,7 +144,7 @@ describe("dispatchQueued", () => {
     const p = new MockDeliveryProvider();
     const o = await deliveryOrder();
     await queueDeliveries(deps(p, [o.orderId]));
-    let when = new Date();
+    let when = new Date(Date.now() + 5_000);
     for (let i = 0; i < MAX_ATTEMPTS + 2; i++) {
       p.failNextCreate();
       await dispatchQueued(deps(p, [o.orderId], { now: when }));
@@ -162,7 +162,7 @@ describe("dispatchQueued", () => {
     // The wallet alert is shared (it has no order), so start from none open.
     await admin().query(`update alerts set resolved_at = now() where kind = 'wallet_low' and resolved_at is null`);
     await queueDeliveries(deps(p, [o.orderId]));
-    let when = new Date();
+    let when = new Date(Date.now() + 5_000);
     for (let i = 0; i < 2; i++) {
       await dispatchQueued(deps(p, [o.orderId], { now: when }));
       when = new Date(when.getTime() + 60 * 60_000);

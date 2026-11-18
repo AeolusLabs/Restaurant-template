@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { WebhookSignatureError } from "../payment/types";
 import {
   DeliveryProviderError,
@@ -77,7 +77,8 @@ export class MockDeliveryProvider implements DeliveryProvider {
     if (!quote || quote.expired) throw new QuoteExpiredError("This delivery fee has expired.");
     if (this.wallet < quote.feeMinor) throw new InsufficientWalletError("Insufficient funds in wallet.");
     this.wallet -= quote.feeMinor;
-    const providerRef = `mock-del-${++this.seq}`;
+    // Unique like a real provider's ids, so two mocks (a restart, or two tests) never share one.
+    const providerRef = `mock-del-${randomUUID().slice(0, 8)}`;
     this.deliveries.set(providerRef, { status: "pending", feeMinor: quote.feeMinor });
     this.byReference.set(input.reference, providerRef);
     this.created.push(input.reference);

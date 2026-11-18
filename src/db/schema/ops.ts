@@ -1,4 +1,5 @@
-import { index, integer, jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { index, integer, jsonb, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { createdAt, id, minor, ts } from "./common";
 import { orders } from "./orders";
 
@@ -63,7 +64,11 @@ export const deliveries = pgTable(
     createdAt: createdAt(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("deliveries_status_idx").on(t.status, t.nextAttemptAt)],
+  (t) => [
+    index("deliveries_status_idx").on(t.status, t.nextAttemptAt),
+    // A provider reference belongs to one delivery, so a webhook can never match two.
+    uniqueIndex("deliveries_provider_ref_unique").on(t.provider, t.providerRef).where(sql`${t.providerRef} is not null`),
+  ],
 );
 
 /** The delivery provider's prepaid wallet balance, as last checked. */

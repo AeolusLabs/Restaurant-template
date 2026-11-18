@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "deliveries_provider_ref_unique" ON "deliveries" USING btree ("provider","provider_ref") WHERE "deliveries"."provider_ref" is not null;
