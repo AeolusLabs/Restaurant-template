@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { CSSProperties } from "react";
 import { restaurantConfig } from "../../config/restaurant";
+import { DemoBanner } from "@/components/demo-banner";
 import { MoneyProvider } from "@/components/money-context";
 import { moneyFormat } from "@/lib/format";
 import "./globals.css";
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             Skip to content
           </a>
+          <DemoBanner />
           {children}
         </MoneyProvider>
       </body>
