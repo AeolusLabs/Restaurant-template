@@ -14,7 +14,7 @@ const encoder = new TextEncoder();
  * heartbeatMs (25 seconds by default) so Cloudflare and other proxies do not close an idle connection. When the
  * viewer leaves (the signal aborts) it unsubscribes and stops its timer.
  */
-export function createOrderStream(hub: StreamHub<unknown>, signal: AbortSignal, opts: { heartbeatMs?: number } = {}): ReadableStream<Uint8Array> {
+export function createOrderStream<T>(hub: StreamHub<T>, signal: AbortSignal, opts: { heartbeatMs?: number } = {}): ReadableStream<Uint8Array> {
   let cleanup = () => {};
   return new ReadableStream<Uint8Array>({
     start(controller) {
