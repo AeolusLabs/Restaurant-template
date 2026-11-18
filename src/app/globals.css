@@ -93,3 +93,23 @@ textarea {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Chart colours. A fixed, validated set (see docs/phase-7-build-log.md): the two series colours pass the CVD,
+ * lightness and contrast checks together, and the heat steps are one blue ramp, light to dark. The charts
+ * are light only, like the rest of the app. They are not branded: a brand colour is not validated.
+ */
+.viz {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-surface: #fcfcfb;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-label: #52514e;
+  --viz-muted: #6b6a65;
+  --viz-h0: #efeee9;
+  --viz-h1: #b7d3f6;
+  --viz-h2: #6da7ec;
+  --viz-h3: #2a78d6;
+  --viz-h4: #104281;
+}
