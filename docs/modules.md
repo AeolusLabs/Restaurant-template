@@ -53,6 +53,8 @@ Until step 1 and 2 are done, selecting a real vendor fails at startup with `Prov
 
 **Remove a service:** delete its adapter file and its `registerProvider` line, and set the selector back to the fake.
 
+The language model adapter (`src/providers/llm/anthropic.ts`) exists but has never run against the live API; set the model and its price on purpose (docs/runbook.md section 14).
+
 Adapters map the vendor's vocabulary onto the interface's (for example Chowdeck's statuses onto `DeliveryStatus`) and throw the shared error classes (`WebhookSignatureError`, `QuoteExpiredError`, `InsufficientWalletError`). The Chowdeck adapter exists (`src/providers/delivery/chowdeck.ts`) but has never run against the live API; `docs/ARCHITECTURE.md` sections 10 and 23 list what to confirm.
 
 ## What stays fixed

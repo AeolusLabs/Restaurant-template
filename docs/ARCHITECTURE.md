@@ -518,3 +518,14 @@ Details and rulings are in `docs/phase-7-build-log.md`; the plan is `docs/superp
 - **Rules are pure** (`src/domain/dashboard/rules.ts`, `scale.ts`): the period is the last N local days including today so far, with the N days before it for comparison; the change is null (not infinity) when there is nothing to compare with; the heatmap has five steps; the delivery verdict separates profit, loss, even and none.
 - **Charts** (`src/components/dashboard/charts.tsx`) are server-rendered SVG and HTML following the dataviz guidance: thin marks, solid hairline grid, a 2px surface gap, text in text colours, a legend wherever there are two series, the browser's own tooltip, and a table view for each. Colours are fixed CSS variables on `.viz` in `globals.css` (validated; not the brand colour).
 - **The page** `/admin/dashboard` shows the delivery section only when `features.delivery` is on and the promo line only when `features.promos` is on.
+
+## 27. Phase 8 implementation notes
+
+Details and rulings are in `docs/phase-8-build-log.md`; the plan is `docs/superpowers/plans/2026-11-18-phase-8-agents.md`.
+
+- **Tables** (migrations 0025 to 0027): `agent_configs` (enabled, autonomy, an owner's auto-send confirmation, cap, settings), `agent_runs` and `agent_proposals`. Managers and owners read; owners change configs; a manager or owner may only move a pending proposal to approved (only one made to wait for approval, never advice) or rejected, as themselves; the system runs and executes.
+- **The contract** (`src/agents/types.ts`): an agent returns `ProposalDraft`s and gets a read-only database handle and the budgeted model. An executor (`Executor`) is the one place a kind of proposal is carried out.
+- **The framework** (`src/agents/framework.ts`): `runAgent` (validates every proposal against its executor's schema before storing any, stores each in the mode `effectiveMode()` gives it, runs the automatic ones), `decideProposal` (approve or reject, then execute), `executeProposal` (idempotent, locks the row, records failure), `expireProposals`. Every step writes `audit_log`.
+- **The spend cap** (`src/agents/llm.ts`): reserve the worst case under an advisory lock, call, replace the reservation with the real cost from the config price table, release it on failure. Pure cost, month and mode rules are in `src/domain/agents/rules.ts`.
+- **Win-back** (`src/agents/winback.ts`) and **support** (`src/agents/support.ts`, `support-facts.ts`, `whatsapp-webhook.ts`) are registered in `src/agents/index.ts`. The worker's `run-agents` job (only with `features.ai_agents`) runs due agents and closes unanswered proposals.
+- **Providers:** `LLMProvider` gains `model` (the key into the price table); `NotificationProvider` gains `parseInbound`. The Anthropic adapter is `src/providers/llm/anthropic.ts`.

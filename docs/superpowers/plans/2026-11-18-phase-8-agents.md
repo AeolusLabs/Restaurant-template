@@ -31,10 +31,10 @@
 
 ## Tasks
 
-- [ ] **T1 Pure rules.** Cost, the month window, which level applies, message templates and their checks.
-- [ ] **T2 Tables.** `agent_configs`, `agent_runs`, `agent_proposals` with RLS (migrations, applied).
-- [ ] **T3 The framework.** The `Agent` contract, the registry, the budgeted model wrapper, running an agent, storing proposals, deciding and executing, with audit.
-- [ ] **T4 Win-back.** The agent, its executor, and the worker job.
-- [ ] **T5 WhatsApp support.** Inbound webhook, the agent, its executor.
-- [ ] **T6 Screens.** Agents, settings, the proposal queue, runs.
-- [ ] **T7 The model adapter, docs, live check, completion status.**
+- [x] **T1 Pure rules.** Cost, the month window, which level applies, message templates and their checks.
+- [x] **T2 Tables.** `agent_configs`, `agent_runs`, `agent_proposals` with RLS (migrations, applied).
+- [x] **T3 The framework.** The `Agent` contract, the registry, the budgeted model wrapper, running an agent, storing proposals, deciding and executing, with audit.
+- [x] **T4 Win-back.** The agent, its executor, and the worker job.
+- [x] **T5 WhatsApp support.** Inbound webhook, the agent, its executor.
+- [x] **T6 Screens.** Agents, settings, the proposal queue, runs.
+- [x] **T7 The model adapter, docs, live check, completion status.**
