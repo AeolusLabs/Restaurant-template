@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { restaurantConfig } from "../config/restaurant";
@@ -13,7 +14,7 @@ let db: TestDb;
 let pool: Pool;
 const NOW = new Date("2031-03-12T11:00:00Z");
 const demoConfig = { ...restaurantConfig, features: { ...restaurantConfig.features, demo_mode: true } };
-const run = (over: Partial<Parameters<typeof seedDemo>[0]> = {}) => seedDemo({ adminUrl: db.urls.admin, config: demoConfig, now: NOW, ...over });
+const run = (over: Partial<Parameters<typeof seedDemo>[0]> = {}) => seedDemo({ db: drizzle(pool), config: demoConfig, now: NOW, ...over });
 const q = async <T = Record<string, unknown>>(text: string, values: unknown[] = []) => (await pool.query(text, values)).rows as T[];
 const n = async (text: string, values: unknown[] = []) => Number((await q<{ n: string }>(text, values))[0].n);
 
@@ -30,8 +31,8 @@ afterAll(async () => {
 
 describe("seed:demo refuses", () => {
   test("when demo mode is off", async () => {
-    await expect(seedDemo({ adminUrl: db.urls.admin, config: restaurantConfig, now: NOW })).rejects.toThrow(DemoSeedError);
-    await expect(seedDemo({ adminUrl: db.urls.admin, config: restaurantConfig, now: NOW })).rejects.toThrow(/demo_mode/);
+    await expect(seedDemo({ db: drizzle(pool), config: restaurantConfig, now: NOW })).rejects.toThrow(DemoSeedError);
+    await expect(seedDemo({ db: drizzle(pool), config: restaurantConfig, now: NOW })).rejects.toThrow(/demo_mode/);
     expect(await n(`select count(*) as n from "user" where email like '%@demo.invalid'`)).toBe(0);
   });
 

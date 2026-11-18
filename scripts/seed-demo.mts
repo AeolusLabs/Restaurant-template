@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { closePools } from "@/db/context";
 import { seedDemo } from "../db/seed/demo";
 import { seedMenu } from "../db/seed/menu";
@@ -12,11 +14,13 @@ if (!admin || !app) throw new Error("DATABASE_ADMIN_URL and DATABASE_URL are req
 const adminUrl = new URL(admin);
 adminUrl.pathname = new URL(app).pathname;
 
+const pool = new Pool({ connectionString: adminUrl.toString(), max: 2 });
 try {
   await seedMenu();
-  const r = await seedDemo({ adminUrl: adminUrl.toString() });
+  const r = await seedDemo({ db: drizzle(pool) });
   console.log(`Demo data ready: ${r.customers} customers, ${r.orders} orders (${r.paid} paid, ${r.cancelled} unpaid and cancelled, ${r.refunded} refunded).`);
   if (r.removedOrders > 0) console.log(`Replaced ${r.removedOrders} orders from an earlier run.`);
 } finally {
+  await pool.end();
   await closePools();
 }

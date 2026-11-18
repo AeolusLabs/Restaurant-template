@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/node-postgres";
-import { Pool } from "pg";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { restaurantConfig } from "../../config/restaurant";
 import type { RestaurantConfig } from "../../config/schema";
 import { loadPricingItems } from "@/db/menu";
@@ -25,7 +24,8 @@ const DEMO_QR_SLUG = "kd2mq9xv";
 const DEMO_QR_LABEL = "Demo table card";
 const PROMO_TERMS: PromoTerms = { kind: "percent", value: 1000, minOrderMinor: 0, maxDiscountMinor: 200_000 };
 
-export type DemoSeedOptions = { adminUrl: string; config?: RestaurantConfig; now?: Date; rng?: () => number; days?: number };
+/** `db` is a connection with the privileged role (see scripts/seed-demo.mts); the app code never makes one. */
+export type DemoSeedOptions = { db: NodePgDatabase; config?: RestaurantConfig; now?: Date; rng?: () => number; days?: number };
 export type DemoSeedResult = { customers: number; orders: number; paid: number; cancelled: number; refunded: number; removedOrders: number };
 
 const FIRST = ["Ada", "Tunde", "Ngozi", "Emeka", "Fatima", "Segun", "Chioma", "Ibrahim", "Bisi", "Kelechi", "Amaka", "Yusuf"];
@@ -34,7 +34,7 @@ const two = (n: number) => String(n).padStart(2, "0");
 const MIN = 60_000;
 
 /** Removes everything a previous run made, in the order the foreign keys allow. */
-async function removeDemo(tx: Parameters<Parameters<ReturnType<typeof drizzle>["transaction"]>[0]>[0]): Promise<number> {
+async function removeDemo(tx: Parameters<Parameters<NodePgDatabase["transaction"]>[0]>[0]): Promise<number> {
   const mine = sql`(select o.id from orders o join "user" u on u.id = o.profile_id where u.email like ${`%@${DEMO_DOMAIN}`})`;
   const count = Number((await tx.execute(sql`select count(*) as n from orders where id in ${mine}`)).rows[0].n);
   await tx.execute(sql`delete from refunds where payment_id in (select id from payments where order_id in ${mine})`);
@@ -58,9 +58,7 @@ export async function seedDemo(opts: DemoSeedOptions): Promise<DemoSeedResult> {
   const days = opts.days ?? 14;
   if (!cfg.features.demo_mode) throw new DemoSeedError("Demo mode is off. Set features.demo_mode to true in config/restaurant.ts first; seed:demo only runs for a showcase deployment.");
 
-  const pool = new Pool({ connectionString: opts.adminUrl, max: 2 });
-  try {
-    return await drizzle(pool).transaction(async (tx) => {
+  return opts.db.transaction(async (tx) => {
       const real = Number(
         (await tx.execute(sql`select count(*) as n from orders o where not exists (select 1 from "user" u where u.id = o.profile_id and u.email like ${`%@${DEMO_DOMAIN}`})`)).rows[0].n,
       );
@@ -200,8 +198,5 @@ export async function seedDemo(opts: DemoSeedOptions): Promise<DemoSeedResult> {
       for (let s = 0; s < 18; s++) await tx.insert(qrScans).values({ sourceId: source.id, scannedAt: new Date(now.getTime() - Math.floor(rng() * days * 86_400_000)) });
 
       return { customers: customers.length, orders: placedTimes.length, paid, cancelled, refunded, removedOrders };
-    });
-  } finally {
-    await pool.end();
-  }
+  });
 }
