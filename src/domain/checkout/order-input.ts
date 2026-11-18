@@ -31,3 +31,27 @@ export const createOrderSchema = z.object({
 
 export type CreateOrderInput = z.input<typeof createOrderSchema>;
 export type ParsedOrderInput = z.output<typeof createOrderSchema>;
+
+/** The delivery checkout form. The fee is not here: the server takes it from the zone the customer picked. */
+export const deliveryOrderSchema = z.object({
+  lines: cartSchema,
+  zone: z.string().trim().min(1, "Choose your area").max(100),
+  address: z.string().trim().min(5, "Enter your full delivery address").max(200, "Keep the address to 200 characters"),
+  landmark: z
+    .string()
+    .trim()
+    .max(100, "Keep the landmark to 100 characters")
+    .optional()
+    .transform((v) => v || undefined),
+  phone: phoneSchema,
+  notes: z
+    .string()
+    .trim()
+    .max(200, "Keep notes to 200 characters")
+    .optional()
+    .transform((v) => v || undefined),
+  expectedTotalMinor: z.number().int().nonnegative().optional(),
+  checkoutToken: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+});
+
+export type CreateDeliveryOrderInput = z.input<typeof deliveryOrderSchema>;

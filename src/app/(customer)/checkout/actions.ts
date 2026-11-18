@@ -11,6 +11,9 @@ import { PaymentStartError, startPayment } from "@/payments/start-payment";
 const REJECTIONS: Record<OrderRejectedError["code"], string> = {
   not_a_customer: "Only customer accounts can place orders. Sign in with a customer account.",
   pickup_disabled: "Pickup orders are not available right now.",
+  delivery_disabled: "Delivery orders are not available right now.",
+  closed: "We are closed, so we cannot take a delivery order right now.",
+  invalid_zone: "We do not deliver to that area. Choose one from the list.",
   invalid_slot: "That pickup time is no longer available. Choose another.",
   cart_problems: "Some items in your cart can no longer be ordered. Go back to your cart to fix this.",
   price_changed: "The prices changed while you were checking out. Go back to your cart to review them.",

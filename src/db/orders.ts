@@ -1,7 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
 import { restaurantConfig } from "../../config/restaurant";
 import type { RestaurantConfig } from "../../config/schema";
-import { createOrderSchema, type CreateOrderInput } from "@/domain/checkout/order-input";
+import { createOrderSchema, deliveryOrderSchema, type CreateDeliveryOrderInput, type CreateOrderInput } from "@/domain/checkout/order-input";
+import { openStatus } from "@/domain/hours";
+import type { CartInput } from "@/domain/checkout/cart";
 import { generatePublicCode } from "@/domain/orders/public-code";
 import type { OrderStatus } from "@/domain/orders/statuses";
 import { IllegalTransitionError, OrderNotFoundError } from "@/domain/orders/transitions";
@@ -13,7 +15,16 @@ import { loadPricingItems } from "./menu";
 import { orderContacts, orderItems, orders, profiles } from "./schema";
 import { transitionOrder } from "./transition-order";
 
-export type RejectionCode = "not_a_customer" | "pickup_disabled" | "invalid_slot" | "cart_problems" | "price_changed" | "profile_missing";
+export type RejectionCode =
+  | "not_a_customer"
+  | "pickup_disabled"
+  | "delivery_disabled"
+  | "closed"
+  | "invalid_zone"
+  | "invalid_slot"
+  | "cart_problems"
+  | "price_changed"
+  | "profile_missing";
 
 /** The order cannot be placed as asked. `problems` names the cart lines at fault, for cart_problems. */
 export class OrderRejectedError extends Error {
@@ -42,26 +53,25 @@ const MAX_CODE_ATTEMPTS = 5;
 const findByToken = async (tx: Tx, profileId: string, token: string): Promise<OrderRow | undefined> =>
   (await tx.select().from(orders).where(and(eq(orders.profileId, profileId), eq(orders.checkoutToken, token))).limit(1))[0];
 
-/**
- * Places a pickup order for the signed-in customer, in one transaction: validates the slot, prices the
- * cart from the database and config (the browser sends no prices), and writes the order, its line
- * snapshots and the contact details. The order starts as `placed` and unpaid; paying it is a separate step.
- * A second call with the same checkoutToken returns the first order instead of making another.
- */
-export async function createPickupOrder(
-  ctx: RequestContext,
-  rawInput: CreateOrderInput,
-  deps: CreateOrderDeps = {},
-): Promise<{ order: OrderRow; created: boolean }> {
-  const input = createOrderSchema.parse(rawInput);
-  const cfg = deps.config ?? restaurantConfig;
-  const now = deps.now ?? new Date();
-  if (ctx.role !== "customer") throw new OrderRejectedError("not_a_customer", "Only customer accounts can place orders");
-  if (!cfg.features.pickup) throw new OrderRejectedError("pickup_disabled", "Pickup orders are not available");
-  if (!isValidPickupSlot(input.pickupAt, now, cfg)) {
-    throw new OrderRejectedError("invalid_slot", "That pickup time is no longer available");
-  }
+type Common = { lines: CartInput; phone: string; notes?: string; expectedTotalMinor?: number; checkoutToken: string };
+type Mode =
+  | { fulfilment: "pickup"; pickupAt: Date }
+  | { fulfilment: "delivery"; deliveryFeeMinor: number; address: { zone: string; address: string; landmark?: string } };
 
+/**
+ * Places an order for the signed-in customer, in one transaction: prices the cart from the database and config
+ * (the browser sends no prices), and writes the order, its line snapshots and the contact details. The order
+ * starts as `placed` and unpaid; paying it is a separate step. A second call with the same checkoutToken
+ * returns the first order instead of making another.
+ */
+async function placeOrder(
+  ctx: RequestContext,
+  input: Common,
+  mode: Mode,
+  cfg: RestaurantConfig,
+  now: Date,
+  deps: CreateOrderDeps,
+): Promise<{ order: OrderRow; created: boolean }> {
   return withRequestContext(
     ctx,
     async (tx) => {
@@ -72,7 +82,7 @@ export async function createPickupOrder(
       if (!profile) throw new OrderRejectedError("profile_missing", "Your account has no profile");
 
       const items = await loadPricingItems(tx, [...new Set(input.lines.map((l) => l.itemId))]);
-      const priced = priceCart(input.lines, items, cfg.charges);
+      const priced = priceCart(input.lines, items, cfg.charges, mode.fulfilment === "delivery" ? mode.deliveryFeeMinor : 0);
       if (!priced.ok) throw new OrderRejectedError("cart_problems", "Some items in your cart cannot be ordered", priced.problems);
 
       if (input.expectedTotalMinor !== undefined && input.expectedTotalMinor !== priced.totalMinor) {
@@ -89,11 +99,12 @@ export async function createPickupOrder(
             checkoutToken: input.checkoutToken,
             customerName: profile.fullName,
             status: "placed",
-            fulfilment: "pickup",
-            pickupAt: input.pickupAt,
+            fulfilment: mode.fulfilment,
+            pickupAt: mode.fulfilment === "pickup" ? mode.pickupAt : null,
             subtotalMinor: priced.subtotalMinor,
             serviceChargeMinor: priced.serviceChargeMinor,
             taxMinor: priced.taxMinor,
+            deliveryFeeMinor: priced.deliveryFeeMinor,
             totalMinor: priced.totalMinor,
             currency: cfg.currency.code,
             notes: input.notes ?? null,
@@ -122,10 +133,54 @@ export async function createPickupOrder(
           lineTotalMinor: l.lineTotalMinor,
         })),
       );
-      await tx.insert(orderContacts).values({ orderId: order.id, phone: input.phone });
+      await tx.insert(orderContacts).values({ orderId: order.id, phone: input.phone, ...(mode.fulfilment === "delivery" ? { addressSnapshot: mode.address } : {}) });
       return { order, created: true };
     },
     { url: deps.appUrl },
+  );
+}
+
+/** A pickup order: validates the pickup slot, then places it. */
+export async function createPickupOrder(
+  ctx: RequestContext,
+  rawInput: CreateOrderInput,
+  deps: CreateOrderDeps = {},
+): Promise<{ order: OrderRow; created: boolean }> {
+  const input = createOrderSchema.parse(rawInput);
+  const cfg = deps.config ?? restaurantConfig;
+  const now = deps.now ?? new Date();
+  if (ctx.role !== "customer") throw new OrderRejectedError("not_a_customer", "Only customer accounts can place orders");
+  if (!cfg.features.pickup) throw new OrderRejectedError("pickup_disabled", "Pickup orders are not available");
+  if (!isValidPickupSlot(input.pickupAt, now, cfg)) {
+    throw new OrderRejectedError("invalid_slot", "That pickup time is no longer available");
+  }
+  return placeOrder(ctx, input, { fulfilment: "pickup", pickupAt: input.pickupAt }, cfg, now, deps);
+}
+
+/**
+ * A delivery order. The customer picks a zone from config and types an address; the fee comes from the zone.
+ * Delivery is for now (no slot), so it is refused while the restaurant is closed.
+ */
+export async function createDeliveryOrder(
+  ctx: RequestContext,
+  rawInput: CreateDeliveryOrderInput,
+  deps: CreateOrderDeps = {},
+): Promise<{ order: OrderRow; created: boolean }> {
+  const input = deliveryOrderSchema.parse(rawInput);
+  const cfg = deps.config ?? restaurantConfig;
+  const now = deps.now ?? new Date();
+  if (ctx.role !== "customer") throw new OrderRejectedError("not_a_customer", "Only customer accounts can place orders");
+  if (!cfg.features.delivery) throw new OrderRejectedError("delivery_disabled", "Delivery orders are not available");
+  if (!openStatus(now, cfg).open) throw new OrderRejectedError("closed", "We are closed, so we cannot take a delivery order right now");
+  const zone = cfg.delivery.zones.find((z) => z.name === input.zone);
+  if (!zone) throw new OrderRejectedError("invalid_zone", "We do not deliver to that area");
+  return placeOrder(
+    ctx,
+    input,
+    { fulfilment: "delivery", deliveryFeeMinor: zone.feeMinor, address: { zone: zone.name, address: input.address, ...(input.landmark ? { landmark: input.landmark } : {}) } },
+    cfg,
+    now,
+    deps,
   );
 }
 
